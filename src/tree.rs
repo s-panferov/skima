@@ -1,0 +1,455 @@
+use std::any::{Any, TypeId};
+use std::cell::{Ref, RefCell};
+use std::collections::HashMap;
+use std::fmt::Debug;
+use std::ops::Deref;
+use std::rc::Rc;
+
+use by_address::ByAddress;
+use indexmap::IndexSet;
+use tracing::dispatcher;
+
+use crate::action::Action;
+use crate::Backend;
+
+pub struct Tree<B: Backend>(Rc<TreeInner<B>>);
+
+impl<B: Backend> PartialEq for Tree<B> {
+	fn eq(&self, other: &Self) -> bool {
+		Rc::ptr_eq(&self.0, &other.0)
+	}
+}
+
+impl<B: Backend> Eq for Tree<B> {}
+
+impl<B: Backend> Clone for Tree<B> {
+	fn clone(&self) -> Self {
+		Tree(self.0.clone())
+	}
+}
+
+impl<B: Backend> Deref for Tree<B> {
+	type Target = Rc<TreeInner<B>>;
+	fn deref(&self) -> &Self::Target {
+		&self.0
+	}
+}
+
+pub struct TreeInner<B: Backend> {
+	pub level: usize,
+
+	pub parent: Option<Tree<B>>,
+	pub prev: RefCell<Option<Tree<B>>>,
+	pub next: RefCell<Option<Tree<B>>>,
+
+	// TODO: Optimize for a single child?
+	pub children: RefCell<IndexSet<ByAddress<Tree<B>>>>,
+
+	// HTML node
+	pub node: RefCell<Option<B::Node>>,
+
+	// Mutable element state
+	pub data: RefCell<HashMap<u64, Rc<dyn Any>>>,
+}
+
+impl<B: Backend> Debug for Tree<B>
+where
+	B: Debug,
+{
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct(&format!("Tree[{:?}]", Rc::as_ptr(&self.0)))
+			.field("parent", &self.parent.as_ref().map(|p| Rc::as_ptr(&p.0)))
+			.field(
+				"prev",
+				&self.prev.borrow().as_ref().map(|p| Rc::as_ptr(&p.0)),
+			)
+			.field(
+				"next",
+				&self.next.borrow().as_ref().map(|p| Rc::as_ptr(&p.0)),
+			)
+			.field("children", &self.children.borrow())
+			.field("node", &self.node)
+			.finish()
+	}
+}
+
+impl<B: Backend> Tree<B> {
+	pub fn root(node: B::Node) -> Self {
+		Tree(Rc::new(TreeInner {
+			level: 0,
+			parent: None,
+			prev: RefCell::new(None),
+			next: RefCell::new(None),
+			children: RefCell::new(IndexSet::new()),
+			node: RefCell::new(Some(node)),
+			data: RefCell::new(Default::default()),
+		}))
+	}
+
+	pub fn ephemeral_root() -> Self {
+		Tree(Rc::new(TreeInner {
+			level: 0,
+			parent: None,
+			prev: RefCell::new(None),
+			next: RefCell::new(None),
+			children: RefCell::new(IndexSet::new()),
+			node: RefCell::new(None),
+			data: RefCell::new(Default::default()),
+		}))
+	}
+
+	pub fn new(parent: &Tree<B>) -> Self {
+		let fiber = Tree(Rc::new(TreeInner {
+			level: parent.level + 1,
+			parent: Some(parent.clone()),
+			prev: RefCell::new(None),
+			next: RefCell::new(None),
+			children: RefCell::new(IndexSet::new()),
+			node: RefCell::new(None),
+			data: RefCell::new(Default::default()),
+		}));
+
+		if let Some(prev) = parent.children.borrow().last() {
+			fiber.prev.replace(Some(prev.0.clone()));
+			prev.next.replace(Some(fiber.clone()));
+		}
+
+		parent
+			.children
+			.borrow_mut()
+			.insert(ByAddress(fiber.clone()));
+
+		fiber
+	}
+
+	#[inline]
+	pub fn data<T: Any>(&self) -> Rc<T> {
+		let data: Rc<dyn Any> = (*self
+			.data
+			.borrow()
+			.get(&fxhash::hash64(&TypeId::of::<T>()))
+			.as_ref()
+			.unwrap())
+		.clone();
+
+		data.downcast::<T>().unwrap()
+	}
+
+	#[inline]
+	pub fn try_data<T: Any>(&self) -> Option<Rc<T>> {
+		self.data
+			.borrow()
+			.get(&fxhash::hash64(&TypeId::of::<T>()))
+			.as_ref()
+			.map(|d| (*d).clone().downcast::<T>().unwrap())
+	}
+
+	#[inline]
+	pub fn remove_data<T: Any>(&self) -> Rc<T> {
+		let data: Rc<dyn Any> = self
+			.data
+			.borrow_mut()
+			.remove(&fxhash::hash64(&TypeId::of::<T>()))
+			.unwrap();
+
+		data.downcast::<T>().unwrap()
+	}
+
+	#[inline]
+	pub fn set_data<T: Any>(&self, value: Rc<T>) {
+		self.data
+			.borrow_mut()
+			.insert(fxhash::hash64(&TypeId::of::<T>()), value);
+	}
+
+	pub fn insert_at(&self, index: usize) -> Self {
+		let tree = Tree(Rc::new(TreeInner {
+			level: self.level + 1,
+			parent: Some(self.clone()),
+			prev: RefCell::new(None),
+			next: RefCell::new(None),
+			children: RefCell::new(IndexSet::new()),
+			node: RefCell::new(None),
+			data: RefCell::new(Default::default()),
+		}));
+
+		if index > self.children.borrow().len() {
+			panic!()
+		}
+
+		if let Some(child) = self.children.borrow().get_index(index) {
+			if let Some(prev) = child.prev.borrow().clone() {
+				prev.next.replace(Some(tree.clone()));
+				tree.prev.replace(Some(prev));
+			}
+			tree.next.replace(Some(child.0.clone()));
+			child.prev.replace(Some(tree.clone()));
+		} else {
+			if let Some(prev) = self.children.borrow().last() {
+				prev.next.replace(Some(tree.clone()));
+				tree.prev.replace(Some(prev.0.clone()));
+			}
+		}
+
+		let (i, _) = self
+			.children
+			.borrow_mut()
+			.insert_full(ByAddress(tree.clone()));
+
+		self.children.borrow_mut().move_index(i, index);
+
+		tree
+	}
+
+	pub fn remove_at(&self, index: usize) {
+		let element = self
+			.children
+			.borrow_mut()
+			.shift_remove_index(index)
+			.unwrap();
+
+		element.disconnect(true);
+	}
+
+	pub fn first_child(&self) -> Tree<B> {
+		self.children.borrow().first().as_ref().unwrap().0.clone()
+	}
+
+	pub fn closest_node(&self) -> B::Node {
+		if let Some(node) = self.node.borrow().as_ref() {
+			return node.clone();
+		} else {
+			self.parent.as_ref().unwrap().closest_node()
+		}
+	}
+
+	pub fn child_at(&self, index: usize) -> Tree<B> {
+		self.children
+			.borrow()
+			.get_index(index)
+			.as_ref()
+			.unwrap()
+			.0
+			.clone()
+	}
+
+	pub fn node(&self) -> Ref<'_, B::Node> {
+		Ref::map(self.node.borrow(), |v: &Option<B::Node>| {
+			v.as_ref().unwrap()
+		})
+	}
+
+	pub fn next(&self) -> Tree<B> {
+		self.next.borrow().clone().unwrap()
+	}
+
+	pub fn prev(&self) -> Tree<B> {
+		self.prev.borrow().clone().unwrap()
+	}
+
+	pub fn clear(&self) {
+		{
+			for child in self.children.borrow().iter() {
+				child.disconnect(false)
+			}
+		}
+
+		self.data.borrow_mut().clear();
+		self.children.borrow_mut().clear();
+	}
+
+	// Break all the cycles
+	pub fn disconnect(&self, fix_siblings: bool) {
+		// PARENT WILL PROBABLY REMOVE US ANYWAY
+
+		// if let Some(parent) = &self.parent {
+		// 	parent
+		// 		.children
+		// 		.borrow_mut()
+		// 		.remove(&ByAddress(self.clone()));
+		// }
+
+		if fix_siblings {
+			match (&*self.prev.borrow(), &*self.next.borrow()) {
+				(Some(prev), Some(next)) => {
+					prev.next.replace(Some(next.clone()));
+					next.prev.replace(Some(prev.clone()));
+				}
+				(Some(prev), None) => {
+					prev.next.replace(None);
+				}
+				(None, Some(next)) => {
+					next.prev.replace(None);
+				}
+				(None, None) => {}
+			}
+		}
+
+		self.prev.replace(None);
+		self.next.replace(None);
+		self.clear()
+	}
+
+	pub fn set_node(&self, node: B::Node) -> Option<B::Node> {
+		self.node.replace(Some(node))
+	}
+
+	pub fn remove_node(&self) -> Option<B::Node> {
+		self.node.replace(None)
+	}
+
+	pub fn attach(&self, prev: Option<B::Node>) {
+		let node = self.node.borrow();
+		let node = node.as_ref().unwrap();
+		if let Some(prev) = prev {
+			B::replace(&node, &prev)
+		} else {
+			if let Some(cursor) = self.find_pacement() {
+				B::insert(cursor, &node);
+			}
+		}
+	}
+
+	pub fn fist_node(&self) -> Option<B::Node> {
+		if let Some(node) = self.node.borrow().as_ref() {
+			return Some(node.clone());
+		}
+
+		for child in self.children.borrow().iter() {
+			if let Some(node) = child.fist_node() {
+				return Some(node.clone());
+			}
+		}
+
+		None
+	}
+
+	pub fn last_node(&self) -> Option<B::Node> {
+		if let Some(node) = self.node.borrow().as_ref() {
+			return Some(node.clone());
+		}
+
+		for child in self.children.borrow().iter().rev() {
+			if let Some(node) = child.last_node() {
+				return Some(node.clone());
+			}
+		}
+
+		None
+	}
+
+	pub fn find_pacement(&self) -> Option<B::Cursor> {
+		let mut cursor = self.clone();
+
+		loop {
+			while cursor.prev.borrow().is_none() {
+				if let Some(parent) = &cursor.parent {
+					let node = parent.node.borrow();
+					if let Some(node) = &*node {
+						return Some(B::cursor_beginning_of(node));
+					} else {
+						std::mem::drop(node);
+						cursor = parent.clone()
+					};
+				} else {
+					return None;
+				}
+			}
+
+			let prev_b = cursor.prev.borrow();
+			let prev = prev_b.clone().unwrap();
+			std::mem::drop(prev_b);
+			cursor = prev;
+
+			if let Some(node) = cursor.last_node() {
+				return Some(B::cursor_after(&node));
+			}
+		}
+	}
+}
+
+/*
+(
+	(a, a, a)
+	(b)
+)
+*/
+
+#[derive(Debug)]
+struct Noop;
+
+impl Backend for Noop {
+	type Cursor = ();
+	type Event = ();
+	type Node = String;
+
+	fn cursor_after(node: &Self::Node) -> Self::Cursor {
+		()
+	}
+
+	fn cursor_beginning_of(node: &Self::Node) -> Self::Cursor {
+		()
+	}
+
+	fn insert(cursor: Self::Cursor, node: &Self::Node) {}
+
+	fn replace(node: &Self::Node, prev: &Self::Node) {}
+}
+
+#[cfg(test)]
+mod tests {
+	use std::borrow::Borrow;
+
+	use super::*;
+
+	#[test]
+	fn test() {
+		let root = Tree::<Noop>::root("Root".into());
+		let child1 = Tree::new(&root);
+		child1.set_node("Child 1".into());
+
+		assert_eq!(root.children.borrow().len(), 1);
+		assert_eq!(*child1.parent.borrow().as_ref().unwrap(), root);
+
+		let child2 = Tree::new(&root);
+		child1.set_node("Child 2".into());
+
+		assert_eq!(root.children.borrow().len(), 2);
+		assert_eq!(child1.next(), child2);
+		assert_eq!(child2.prev(), child1);
+
+		// Insert in the middle
+		let child3 = root.insert_at(1);
+		child1.set_node("Child 3".into());
+
+		assert_eq!(root.children.borrow().len(), 3);
+
+		assert_eq!(**root.children.borrow().get_index(0).unwrap(), child1);
+		assert_eq!(**root.children.borrow().get_index(1).unwrap(), child3);
+		assert_eq!(**root.children.borrow().get_index(2).unwrap(), child2);
+
+		assert_eq!(child1.next(), child3);
+		assert_eq!(child3.next(), child2);
+		assert_eq!(*child2.next.borrow(), None);
+
+		assert_eq!(child2.prev(), child3);
+		assert_eq!(child3.prev(), child1);
+		assert_eq!(*child1.prev.borrow(), None);
+
+		root.remove_at(1);
+
+		assert_eq!(root.children.borrow().len(), 2);
+
+		assert_eq!(**root.children.borrow().get_index(0).unwrap(), child1);
+		assert_eq!(**root.children.borrow().get_index(1).unwrap(), child2);
+
+		assert_eq!(child1.next(), child2);
+		assert_eq!(child2.prev(), child1);
+
+		assert_eq!(*child1.prev.borrow(), None);
+		assert_eq!(*child2.next.borrow(), None);
+
+		assert_eq!(*child3.prev.borrow(), None);
+		assert_eq!(*child3.next.borrow(), None);
+	}
+}

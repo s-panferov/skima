@@ -1,0 +1,9 @@
+[build]
+# Build in release mode.
+release = true
+
+[watch]
+watch = [
+  ".",
+  "../skima"
+]

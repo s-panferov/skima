@@ -1,0 +1,73 @@
+<html><head>
+    <script crossorigin="" src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin="" src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script>
+      window.test = () => {
+   
+
+        document.body.innerHTML = ''
+
+        let div = document.createElement("div")
+        document.body.appendChild(div)
+
+        let root = ReactDOM.createRoot(div)
+
+        console.time()
+
+        for (let i = 0; i <= 1000; i++) {
+          let sasha = `Hello ${i}`
+          root.render(
+            React.createElement(React.Fragment, {}, [
+              React.createElement("div", {}, [
+                React.createElement("div", {}, [
+                sasha
+                ])
+              ]),
+              React.createElement("span", {}, [
+                React.createElement("span", {}, [
+                sasha
+                ])
+              ]),
+              React.createElement("a", {}, [
+                React.createElement("a", {}, [
+                sasha
+                ])
+              ])
+            ])
+          )
+        }
+
+        console.timeEnd()
+      }
+    </script> 
+  
+<link rel="preload" href="/dom2-web-768d0c26777c5f58_bg.wasm" as="fetch" type="application/wasm" crossorigin="">
+<link rel="modulepreload" href="/dom2-web-768d0c26777c5f58.js"></head>
+<body><script type="module">import init from '/dom2-web-768d0c26777c5f58.js';init('/dom2-web-768d0c26777c5f58_bg.wasm');</script><script>(function () {
+    var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    var url = protocol + '//' + window.location.host + '/_trunk/ws';
+    var poll_interval = 5000;
+    var reload_upon_connect = () => {
+        window.setTimeout(
+            () => {
+                // when we successfully reconnect, we'll force a
+                // reload (since we presumably lost connection to
+                // trunk due to it being killed, so it will have
+                // rebuilt on restart)
+                var ws = new WebSocket(url);
+                ws.onopen = () => window.location.reload();
+                ws.onclose = reload_upon_connect;
+            },
+            poll_interval);
+    };
+
+    var ws = new WebSocket(url);
+    ws.onmessage = (ev) => {
+        const msg = JSON.parse(ev.data);
+        if (msg.reload) {
+            window.location.reload();
+        }
+    };
+    ws.onclose = reload_upon_connect;
+})()
+</script></body></html>
