@@ -1,4 +1,4 @@
-use std::any::{Any, TypeId};
+use std::any::{type_name, Any, TypeId};
 use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -7,9 +7,7 @@ use std::rc::Rc;
 
 use by_address::ByAddress;
 use indexmap::IndexSet;
-use tracing::dispatcher;
 
-use crate::action::Action;
 use crate::Backend;
 
 pub struct Tree<B: Backend>(Rc<TreeInner<B>>);
@@ -129,7 +127,7 @@ impl<B: Backend> Tree<B> {
 			.borrow()
 			.get(&fxhash::hash64(&TypeId::of::<T>()))
 			.as_ref()
-			.unwrap())
+			.expect(&type_name::<T>()))
 		.clone();
 
 		data.downcast::<T>().unwrap()
