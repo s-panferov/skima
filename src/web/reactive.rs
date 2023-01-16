@@ -681,6 +681,7 @@ where
 		let component = tree.data::<ReactiveComponent<F, M, B, E>>();
 
 		{
+			component.state.set(State::Invalid(Invalid::Definitely));
 			let mut component = component.inner.borrow_mut();
 			component.factory = self.factory.clone();
 			component.tree = tree.clone();
