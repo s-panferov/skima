@@ -619,6 +619,10 @@ where
 		M::has_own_node()
 	}
 
+	fn dynamic() -> bool {
+		true
+	}
+
 	fn render(&self, tree: &Tree<B>) {
 		let component = Rc::new_cyclic(|this: &Weak<ReactiveComponent<F, M, B, E>>| {
 			let mut context = ReactiveContext {
@@ -697,7 +701,10 @@ where
 		inner.markup.drop(tree, should_unmount);
 		std::mem::drop(inner);
 
-		tree.clear();
+
+		if Self::has_own_node() {
+			tree.clear()
+		}
 	}
 }
 

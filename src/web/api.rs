@@ -118,8 +118,8 @@ thread_local! {
 }
 
 fn root_bump<'a>(bump: &'a Bump, n: usize) -> impl Markup + 'a {
-	let text = bumpalo::format!(in bump, "Hello {}", n).into_bump_str();
-	(div(div(text)), span(span(text)), a(a(text)))
+	let text = bumpalo::format!(in bump, "Hello {}", n);
+	span(span(text))
 }
 
 fn button<'a>(name: &'a str) -> impl Markup + 'a {

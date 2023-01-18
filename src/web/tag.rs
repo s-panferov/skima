@@ -23,6 +23,10 @@ where
 		true
 	}
 
+	fn dynamic() -> bool {
+		M::dynamic()
+	}
+
 	fn render(&self, tree: &Tree<WebSys>) {
 		tracing::info!("Rendering tag {}", self.tag);
 
@@ -33,6 +37,10 @@ where
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<WebSys>) {
+		if !Self::dynamic() {
+			return
+		}
+
 		if prev.tag != self.tag {
 			// re-render
 			let element = DOCUMENT.with(|d| d.create_element(self.tag).unwrap());

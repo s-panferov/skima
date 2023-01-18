@@ -12,6 +12,10 @@ impl Markup for String {
 		true
 	}
 
+	fn dynamic() -> bool {
+		true
+	}
+
 	fn render(&self, tree: &Tree<WebSys>) {
 		tracing::info!("Rendering text {}", self);
 
@@ -79,9 +83,13 @@ impl<'a> Markup<WebSys> for bumpalo::collections::String<'a> {
 	}
 }
 
-impl<'a> Markup<WebSys> for &'a str {
+impl Markup<WebSys> for &'static str {
 	fn has_own_node() -> bool {
 		true
+	}
+
+	fn dynamic() -> bool {
+		false
 	}
 
 	fn render(&self, tree: &Tree<WebSys>) {
@@ -93,6 +101,10 @@ impl<'a> Markup<WebSys> for &'a str {
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<WebSys>) {
+		if !Self::dynamic() {
+			return;
+		}
+
 		tracing::info!("Diffing text {}", self);
 
 		if prev != self {
@@ -131,6 +143,10 @@ impl Markup for Cow<'static, str> {
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<WebSys>) {
+		if !Self::dynamic() {
+			return;
+		}
+
 		tracing::info!("Diffing text {}", self);
 
 		if prev != self {

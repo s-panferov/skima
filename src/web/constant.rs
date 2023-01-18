@@ -64,6 +64,10 @@ where
 		M::has_own_node()
 	}
 
+	fn dynamic() -> bool {
+		M::dynamic()
+	}
+
 	fn render(&self, tree: &Tree<B>) {
 		let mut context = ConstantContext { tree: tree.clone() };
 
@@ -77,6 +81,10 @@ where
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<B>) {
+		if !Self::dynamic() {
+			return;
+		}
+
 		let mut context = ConstantContext { tree: tree.clone() };
 		if let Some(factory) = self.factory.take() {
 			let markup = factory(&mut context);
@@ -92,6 +100,8 @@ where
 			markup.drop(tree, should_unmount);
 		}
 
-		tree.clear();
+		if Self::has_own_node() {
+			tree.clear();
+		}
 	}
 }

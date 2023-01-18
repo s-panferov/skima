@@ -28,6 +28,10 @@ pub trait Markup<B: Backend = web::WebSys> {
 		return true;
 	}
 
+	fn dynamic() -> bool {
+		return true;
+	}
+
 	fn render(&self, tree: &Tree<B>);
 	fn diff(&self, prev: &Self, tree: &Tree<B>);
 	fn drop(&self, tree: &Tree<B>, should_unmount: bool);
@@ -122,6 +126,10 @@ where
 		A::has_own_node()
 	}
 
+	fn dynamic() -> bool {
+		A::dynamic()
+	}
+
 	fn render(&self, tree: &Tree<BACKEND>) {
 		self.0.render(&tree);
 	}
@@ -165,12 +173,20 @@ where
 		A::has_own_node() || B::has_own_node()
 	}
 
+	fn dynamic() -> bool {
+		A::dynamic() || B::dynamic()
+	}
+
 	fn render(&self, tree: &Tree<BACKEND>) {
 		render_subtree(&self.0, &tree);
 		render_subtree(&self.1, &tree);
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
+		if !Self::dynamic() {
+			return;
+		}
+
 		let mut cursor: Option<Tree<BACKEND>> = None;
 
 		self.0
@@ -211,6 +227,10 @@ where
 		A::has_own_node() || B::has_own_node() || C::has_own_node()
 	}
 
+	fn dynamic() -> bool {
+		A::dynamic() || B::dynamic() || C::dynamic()
+	}
+
 	fn render(&self, tree: &Tree<BACKEND>) {
 		render_subtree(&self.0, &tree);
 		render_subtree(&self.1, &tree);
@@ -218,6 +238,10 @@ where
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
+		if !Self::dynamic() {
+			return;
+		}
+
 		let mut cursor: Option<Tree<BACKEND>> = None;
 
 		self.0
@@ -266,6 +290,10 @@ where
 		A::has_own_node() || B::has_own_node() || C::has_own_node() || D::has_own_node()
 	}
 
+	fn dynamic() -> bool {
+		A::dynamic() || B::dynamic() || C::dynamic() || D::dynamic()
+	}
+
 	fn render(&self, tree: &Tree<BACKEND>) {
 		render_subtree(&self.0, &tree);
 		render_subtree(&self.1, &tree);
@@ -274,6 +302,10 @@ where
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
+		if !Self::dynamic() {
+			return;
+		}
+
 		let mut cursor: Option<Tree<BACKEND>> = None;
 
 		self.0
@@ -334,6 +366,10 @@ where
 			|| E::has_own_node()
 	}
 
+	fn dynamic() -> bool {
+		A::dynamic() || B::dynamic() || C::dynamic() || D::dynamic() || E::dynamic()
+	}
+
 	fn render(&self, tree: &Tree<BACKEND>) {
 		render_subtree(&self.0, &tree);
 		render_subtree(&self.1, &tree);
@@ -343,6 +379,10 @@ where
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
+		if !Self::dynamic() {
+			return;
+		}
+
 		let mut cursor: Option<Tree<BACKEND>> = None;
 
 		self.0

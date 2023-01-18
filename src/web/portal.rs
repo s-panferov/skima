@@ -14,12 +14,20 @@ impl<M: Markup<WebSys>> Markup<WebSys> for Portal<M> {
 		true
 	}
 
+	fn dynamic() -> bool {
+		M::dynamic()
+	}
+
 	fn render(&self, tree: &crate::tree::Tree<WebSys>) {
 		tree.set_node(self.element.clone().unchecked_into());
 		render_subtree(&self.markup, &tree);
 	}
 
 	fn diff(&self, prev: &Self, tree: &crate::tree::Tree<WebSys>) {
+		if !Self::dynamic() {
+			return;
+		}
+
 		let subtree = subtree::<M, _>(&tree);
 		self.markup.diff(&prev.markup, &subtree);
 	}

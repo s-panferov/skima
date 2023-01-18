@@ -44,6 +44,10 @@ where
 		false
 	}
 
+	fn dynamic() -> bool {
+		true
+	}
+
 	fn render(&self, tree: &Tree<WebSys>) {
 		tracing::info!("Rendering event {}", self.event);
 		tracing::info!("Event tree {:?}", tree);
