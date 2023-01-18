@@ -701,6 +701,8 @@ where
 		inner.markup.drop(tree, should_unmount);
 		std::mem::drop(inner);
 
+		// Clean itself
+		tree.remove_data::<ReactiveComponent<F, M, B, E>>();
 
 		if Self::has_own_node() {
 			tree.clear()

@@ -252,7 +252,11 @@ impl<B: Backend> Tree<B> {
 			}
 		}
 
-		self.data.borrow_mut().clear();
+		// FIXME: If we are going to enable this
+		//        ReactiveComponents should always create
+		//        an own tree node.
+
+		// self.data.borrow_mut().clear();
 		self.children.borrow_mut().clear();
 	}
 
