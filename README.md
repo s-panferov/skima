@@ -19,7 +19,7 @@ fn component() -> impl Markup {
 
 This is a simple funtion that returns some markup. No macros, no hidden magick, just Rust. The returned type `impl Markup` is hiding a complex type we build internally, which will be something like:
 
-```rust
+```ignore
 Tag<"div", (ClassName, Tag<"html", &'static str>)>
 ```
 
@@ -34,6 +34,8 @@ As you can see, the library does not do any type erasure, we are not building a 
 ### Components as functions
 
 ```rust
+use skima::web::prelude::*;
+
 #[derive(Eq, PartialEq)]
 struct ButtonProps {
   value: usize,
@@ -52,18 +54,24 @@ fn button(props: ButtonProps) -> impl Markup {
 ### Reactivity
 
 ```rust
+use skima::web::prelude::*;
+
+
 fn counter(name: String) -> impl Markup {
   reactive(|cx| {
     cx.with(0 as usize);
 
-    let on_click = cx.callback_1(|cx, value| {
-      cx.set(value + 1);
+    let on_click = cx.callback_1(|cx, _| {
+      let current = cx.get::<usize>();
+      cx.set::<usize>(current + 1);
     });
 
-    button(ButtonProps {
-      value: *cx.get(),
-      on_click: Some(on_click),
-    })
+    let current = cx.get::<usize>();
+
+    div((
+      current.to_string(), 
+      on("click", on_click)
+    ))
   })
 }
 ```
@@ -73,6 +81,9 @@ fn counter(name: String) -> impl Markup {
 Take a look: [observe](https://github.com/s-panferov/observe)
 
 ```rust 
+use skima::web::prelude::*;
+use observe::{Var, batch};
+
 fn component() -> impl Markup {
   reactive(|cx| {
     let flag = cx.with_memo(|| Var::new(true));
@@ -83,8 +94,9 @@ fn component() -> impl Markup {
       "False"
     };
 
-    let on_click = cx.callback_1(|_, ev| {
-      batch(|| flag.toggle());
+    let on_click = cx.callback_1({
+      let flag = flag.clone();
+      move |_, ev| batch(|| flag.toggle())
     });
 
     div((
@@ -95,6 +107,10 @@ fn component() -> impl Markup {
 }
 ```
 
+### More features
+
+* [Lists](./docs/List.md)
+
 ### More
 
 Those features do exist and work, but need some documentation and examples (TODO):
@@ -102,7 +118,6 @@ Those features do exist and work, but need some documentation and examples (TODO
 * Event handlers and callbacks
 * Effects and cleanup
 * Static optimizations
-* Lists
 * Combinators (Option, Tuple)
 * Portals
 * Bump allocation

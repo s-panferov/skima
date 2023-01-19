@@ -28,6 +28,7 @@ pub mod text;
 pub mod prelude {
 	pub use crate::reference::reference;
 	pub use crate::web::attr::{attr, classlist, classname};
+	pub use crate::web::callback::Callback;
 	pub use crate::web::event::{on, on_if};
 	pub use crate::web::html::*;
 	pub use crate::web::reactive::reactive;

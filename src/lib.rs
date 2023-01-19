@@ -23,6 +23,7 @@ pub mod reference;
 pub mod tree;
 pub mod web;
 
+mod docs;
 pub trait Markup<B: Backend = web::WebSys> {
 	fn has_own_node() -> bool {
 		return true;
