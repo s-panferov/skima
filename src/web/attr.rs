@@ -26,7 +26,7 @@ impl StringLike for String {
 }
 
 impl<'a> StringLike for Cow<'a, str> {
-	const DYNAMIC: bool = false;
+	const DYNAMIC: bool = true;
 }
 
 pub fn classname<S: StringLike>(classname: S) -> Attr<&'static str, S> {
@@ -88,7 +88,7 @@ impl<S1: StringLike, S2: StringLike> Markup for Attr<S1, S2> {
 	}
 
 	fn dynamic() -> bool {
-		S1::DYNAMIC && S2::DYNAMIC
+		S1::DYNAMIC || S2::DYNAMIC
 	}
 
 	fn render(&self, tree: &Tree<WebSys>) {
@@ -103,7 +103,7 @@ impl<S1: StringLike, S2: StringLike> Markup for Attr<S1, S2> {
 			return;
 		}
 
-		if prev.0.as_ref() != self.0.as_ref() {
+		if prev.1.as_ref() != self.1.as_ref() {
 			tree.closest_node()
 				.unchecked_ref::<HtmlElement>()
 				.set_attribute(&self.0.as_ref(), &self.1.as_ref())
