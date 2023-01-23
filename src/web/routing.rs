@@ -3,7 +3,8 @@ use std::rc::Rc;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
 
-use super::dispatch::{Action, DispatcherExt};
+use super::dispatch::DispatcherExt;
+use crate::action::Action;
 use crate::web::{Markup, WebSys};
 
 pub struct HistoryEvent(Closure<dyn Fn(web_sys::Event)>);

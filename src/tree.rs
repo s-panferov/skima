@@ -8,6 +8,7 @@ use std::rc::Rc;
 use by_address::ByAddress;
 use indexmap::IndexSet;
 
+use crate::web::dispatch::ActionHandler;
 use crate::Backend;
 
 pub struct Tree<B: Backend>(Rc<TreeInner<B>>);
@@ -46,6 +47,9 @@ pub struct TreeInner<B: Backend> {
 	// HTML node
 	pub node: RefCell<Option<B::Node>>,
 
+	// Capture state
+	pub(crate) capture: RefCell<HashMap<u64, ActionHandler>>,
+
 	// Mutable element state
 	pub data: RefCell<HashMap<u64, Rc<dyn Any>>>,
 }
@@ -76,6 +80,7 @@ impl<B: Backend> Tree<B> {
 		Tree(Rc::new(TreeInner {
 			level: 0,
 			parent: None,
+			capture: Default::default(),
 			prev: RefCell::new(None),
 			next: RefCell::new(None),
 			children: RefCell::new(IndexSet::new()),
@@ -88,6 +93,7 @@ impl<B: Backend> Tree<B> {
 		Tree(Rc::new(TreeInner {
 			level: 0,
 			parent: None,
+			capture: Default::default(),
 			prev: RefCell::new(None),
 			next: RefCell::new(None),
 			children: RefCell::new(IndexSet::new()),
@@ -99,6 +105,7 @@ impl<B: Backend> Tree<B> {
 	pub fn new(parent: &Tree<B>) -> Self {
 		let fiber = Tree(Rc::new(TreeInner {
 			level: parent.level + 1,
+			capture: Default::default(),
 			parent: Some(parent.clone()),
 			prev: RefCell::new(None),
 			next: RefCell::new(None),
@@ -166,6 +173,7 @@ impl<B: Backend> Tree<B> {
 			parent: Some(self.clone()),
 			prev: RefCell::new(None),
 			next: RefCell::new(None),
+			capture: Default::default(),
 			children: RefCell::new(IndexSet::new()),
 			node: RefCell::new(None),
 			data: RefCell::new(Default::default()),

@@ -7,7 +7,7 @@ use std::rc::{Rc, Weak};
 use super::reactive::Extension;
 use crate::web::reactive::{ReactiveContext, WithMemo};
 
-pub struct Callback<T: ?Sized>(pub(crate) Rc<T>);
+pub struct Callback<T: ?Sized>(pub Rc<T>);
 
 // impl<F: ?Sized, A: Tuple> Fn<A> for Callback<F>
 // where
@@ -43,6 +43,12 @@ impl<T: ?Sized> PartialEq for Callback<T> {
 	}
 }
 
+impl<T: ?Sized> Hash for Callback<T> {
+	fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+		Rc::as_ptr(&self.0).hash(state);
+	}
+}
+
 impl<T: ?Sized> Clone for Callback<T> {
 	fn clone(&self) -> Self {
 		Callback(self.0.clone())
@@ -50,8 +56,13 @@ impl<T: ?Sized> Clone for Callback<T> {
 }
 
 impl<T> Callback<T> {
-	fn new(func: T) -> Self {
+	pub fn new(func: T) -> Self {
 		Callback(Rc::new(func))
+	}
+}
+impl<T: ?Sized> Callback<T> {
+	pub fn as_ptr(&self) -> *const T {
+		Rc::as_ptr(&self.0)
 	}
 }
 

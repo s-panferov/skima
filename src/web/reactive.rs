@@ -11,10 +11,11 @@ use observe::{batch, Dependencies, Derived, Evaluation, Invalid, State, CHANGED}
 use wasm_bindgen::prelude::{wasm_bindgen, Closure};
 use wasm_bindgen::JsValue;
 
+use super::dispatch::ActionResult;
+use crate::action::Action;
 use crate::dont_panic;
 use crate::reference::Mutable;
 use crate::tree::Tree;
-use crate::web::dispatch::Action;
 use crate::web::effect::EffectContext;
 use crate::web::{Backend, Markup};
 
@@ -409,9 +410,19 @@ where
 	}
 }
 
-impl<E> ReactiveContext<E> {
+impl<E: 'static> ReactiveContext<E> {
 	pub fn dispatch<T: Action>(&self, action: T) {
 		let action = Box::new(action) as Box<dyn Action>;
+		let renderable = self.renderable.clone();
+
+		// FIXME: we have a problem with the current RefCell structure
+		//        to fix this we may need to make the ReactiveContext
+		//        generic over a Backend and move the Tree<B> reference there
+		queue(move || {
+			if let Some(renderable) = renderable.upgrade() {
+				renderable.dispatch(action);
+			}
+		})
 	}
 
 	pub fn wrap<F, T>(&self, func: F) -> impl Fn(T)
@@ -464,6 +475,7 @@ where
 
 pub(crate) trait Renderable<E> {
 	fn update(&self);
+	fn dispatch(&self, action: Box<dyn Action>);
 	fn context(&self) -> RefMut<ReactiveContext<E>>;
 }
 
@@ -725,5 +737,20 @@ where
 
 	fn context(&self) -> RefMut<'_, ReactiveContext<E>> {
 		RefMut::map(self.inner.borrow_mut(), |c| &mut c.context)
+	}
+
+	fn dispatch(&self, action: Box<dyn Action>) {
+		let mut cursor = { Some(self.inner.borrow().tree.clone()) };
+
+		let mut action = Some(action);
+		while let Some(tree) = cursor {
+			for item in tree.capture.borrow().values() {
+				match item(action.take().unwrap()) {
+					ActionResult::Propagate(a) => action = Some(a),
+					ActionResult::Stop => break,
+				}
+			}
+			cursor = tree.parent.clone();
+		}
 	}
 }
