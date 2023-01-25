@@ -75,49 +75,54 @@ impl<T: ?Sized> Deref for Callback<T> {
 
 impl<T: ?Sized> Eq for Callback<T> {}
 
-struct Callback0<F, M, E>
+struct Callback0<F, R, M, E>
 where
-	F: Fn(&mut ReactiveContext<E>),
+	F: Fn(&mut ReactiveContext<E>) -> R,
 {
 	func: F,
 	memo: M,
 	context: Weak<dyn crate::web::reactive::Renderable<E>>,
 }
 
-impl<F, M, E> Fn<()> for Callback0<F, M, E>
+impl<F, R, M, E> Fn<()> for Callback0<F, R, M, E>
 where
-	F: Fn(&mut ReactiveContext<E>),
+	F: Fn(&mut ReactiveContext<E>) -> R,
+	R: Default,
 {
-	extern "rust-call" fn call(&self, _args: ()) {
+	extern "rust-call" fn call(&self, _args: ()) -> R {
 		if let Some(context) = self.context.upgrade() {
 			(self.func)(&mut *context.context())
+		} else {
+			Default::default()
 		}
 	}
 }
 
-impl<F, M, E> FnMut<()> for Callback0<F, M, E>
+impl<F, R, M, E> FnMut<()> for Callback0<F, R, M, E>
 where
-	F: Fn(&mut ReactiveContext<E>),
+	F: Fn(&mut ReactiveContext<E>) -> R,
+	R: Default,
 {
-	extern "rust-call" fn call_mut(&mut self, args: ()) {
+	extern "rust-call" fn call_mut(&mut self, args: ()) -> R {
 		self.call(args)
 	}
 }
 
-impl<F, M, E> FnOnce<()> for Callback0<F, M, E>
+impl<F, R, M, E> FnOnce<()> for Callback0<F, R, M, E>
 where
-	F: Fn(&mut ReactiveContext<E>),
+	F: Fn(&mut ReactiveContext<E>) -> R,
+	R: Default,
 {
-	extern "rust-call" fn call_once(self, args: ()) {
+	extern "rust-call" fn call_once(self, args: ()) -> R {
 		self.call(args)
 	}
 
-	type Output = ();
+	type Output = R;
 }
 
-struct Callback1<F, T, M, E>
+struct Callback1<F, R, T, M, E>
 where
-	F: Fn(&mut ReactiveContext<E>, T),
+	F: Fn(&mut ReactiveContext<E>, T) -> R,
 {
 	func: F,
 	memo: M,
@@ -125,51 +130,57 @@ where
 	_t: PhantomData<T>,
 }
 
-impl<F, T, M, E> Fn<(T,)> for Callback1<F, T, M, E>
+impl<F, R, T, M, E> Fn<(T,)> for Callback1<F, R, T, M, E>
 where
-	F: Fn(&mut ReactiveContext<E>, T),
+	F: Fn(&mut ReactiveContext<E>, T) -> R,
+	R: Default,
 {
-	extern "rust-call" fn call(&self, args: (T,)) {
+	extern "rust-call" fn call(&self, args: (T,)) -> R {
 		if let Some(context) = self.context.upgrade() {
 			(self.func)(&mut *context.context(), args.0)
+		} else {
+			Default::default()
 		}
 	}
 }
 
-impl<F, T, M, E> FnMut<(T,)> for Callback1<F, T, M, E>
+impl<F, R, T, M, E> FnMut<(T,)> for Callback1<F, R, T, M, E>
 where
-	F: Fn(&mut ReactiveContext<E>, T),
+	F: Fn(&mut ReactiveContext<E>, T) -> R,
+	R: Default,
 {
-	extern "rust-call" fn call_mut(&mut self, args: (T,)) {
+	extern "rust-call" fn call_mut(&mut self, args: (T,)) -> R {
 		self.call(args)
 	}
 }
 
-impl<F, T, M, E> FnOnce<(T,)> for Callback1<F, T, M, E>
+impl<F, R, T, M, E> FnOnce<(T,)> for Callback1<F, R, T, M, E>
 where
-	F: Fn(&mut ReactiveContext<E>, T),
+	F: Fn(&mut ReactiveContext<E>, T) -> R,
+	R: Default,
 {
-	extern "rust-call" fn call_once(self, args: (T,)) {
+	extern "rust-call" fn call_once(self, args: (T,)) -> R {
 		self.call(args)
 	}
 
-	type Output = ();
+	type Output = R;
 }
 
 impl<E: 'static> ReactiveContext<E>
 where
 	Self: Extension<WithMemo>,
 {
-	pub fn callback_0_eq<F, M>(&self, memo: M, func: F) -> Callback<dyn Fn()>
+	pub fn callback_0_eq<F, R, M>(&self, memo: M, func: F) -> Callback<dyn Fn() -> R>
 	where
 		M: PartialEq + 'static,
-		F: Fn(&mut Self) + 'static,
+		R: Default + 'static,
+		F: Fn(&mut Self) -> R + 'static,
 	{
 		let type_id = TypeId::of::<F>();
 
 		let with_memo: &WithMemo = self.try_extension().unwrap();
 		if let Some(cb) = with_memo.memo.borrow_mut().get(&type_id) {
-			let callback = Rc::downcast::<Callback0<F, M, E>>(cb.clone())
+			let callback = Rc::downcast::<Callback0<F, R, M, E>>(cb.clone())
 				.map_err(|_| ())
 				.unwrap();
 
@@ -207,16 +218,17 @@ where
 		self.callback_0_eq(fxhash::hash64(memo), func)
 	}
 
-	pub fn callback_1_eq<F, M, T: 'static>(&self, memo: M, func: F) -> Callback<dyn Fn(T)>
+	pub fn callback_1_eq<F, R, M, T: 'static>(&self, memo: M, func: F) -> Callback<dyn Fn(T) -> R>
 	where
 		M: PartialEq + 'static,
-		F: Fn(&mut Self, T) + 'static,
+		R: Default + 'static,
+		F: Fn(&mut Self, T) -> R + 'static,
 	{
 		let type_id = TypeId::of::<F>();
 
 		let with_memo: &WithMemo = self.try_extension().unwrap();
 		if let Some(cb) = with_memo.memo.borrow_mut().get(&type_id) {
-			let callback = Rc::downcast::<Callback1<F, T, M, E>>(cb.clone())
+			let callback = Rc::downcast::<Callback1<F, R, T, M, E>>(cb.clone())
 				.map_err(|_| ())
 				.unwrap();
 
@@ -240,17 +252,23 @@ where
 		return Callback(callback);
 	}
 
-	pub fn callback_1<F, T: 'static>(&self, func: F) -> Callback<dyn Fn(T)>
+	pub fn callback_1<F, R, T: 'static>(&self, func: F) -> Callback<dyn Fn(T) -> R>
 	where
-		F: Fn(&mut Self, T) + 'static,
+		F: Fn(&mut Self, T) -> R + 'static,
+		R: Default + 'static,
 	{
 		self.callback_1_eq((), func)
 	}
 
-	pub fn callback_1_hash<F, M, T: 'static>(&self, memo: &M, func: F) -> Callback<dyn Fn(T)>
+	pub fn callback_1_hash<F, M, R, T: 'static>(
+		&self,
+		memo: &M,
+		func: F,
+	) -> Callback<dyn Fn(T) -> R>
 	where
 		M: Hash,
-		F: Fn(&mut Self, T) + 'static,
+		R: Default + 'static,
+		F: Fn(&mut Self, T) -> R + 'static,
 	{
 		self.callback_1_eq(fxhash::hash64(memo), func)
 	}

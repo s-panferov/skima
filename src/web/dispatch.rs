@@ -12,6 +12,12 @@ pub enum ActionResult {
 	Stop,
 }
 
+impl Default for ActionResult {
+	fn default() -> Self {
+		Self::Stop
+	}
+}
+
 pub type ActionHandler = Callback<dyn Fn(Box<dyn Action>) -> ActionResult>;
 
 pub struct Dispatcher {
