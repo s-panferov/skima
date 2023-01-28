@@ -101,10 +101,6 @@ impl Markup<WebSys> for &'static str {
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<WebSys>) {
-		if !Self::dynamic() {
-			return;
-		}
-
 		tracing::info!("Diffing text {}", self);
 
 		if prev != self {
@@ -143,10 +139,6 @@ impl Markup for Cow<'static, str> {
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<WebSys>) {
-		if !Self::dynamic() {
-			return;
-		}
-
 		tracing::info!("Diffing text {}", self);
 
 		if prev != self {

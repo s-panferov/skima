@@ -38,6 +38,40 @@ pub trait Markup<B: Backend = web::WebSys> {
 	fn drop(&self, tree: &Tree<B>, should_unmount: bool);
 }
 
+pub struct Dynamic<M: Markup<B>, B: Backend> {
+	markup: M,
+	_b: PhantomData<B>,
+}
+
+pub fn dynamic<M: Markup<B>, B: Backend>(markup: M) -> Dynamic<M, B> {
+	Dynamic {
+		markup,
+		_b: PhantomData,
+	}
+}
+
+impl<M: Markup<B>, B: Backend> Markup<B> for Dynamic<M, B> {
+	fn has_own_node() -> bool {
+		M::has_own_node()
+	}
+
+	fn dynamic() -> bool {
+		true
+	}
+
+	fn render(&self, tree: &Tree<B>) {
+		self.markup.render(tree);
+	}
+
+	fn diff(&self, prev: &Self, tree: &Tree<B>) {
+		self.markup.diff(&prev.markup, tree)
+	}
+
+	fn drop(&self, tree: &Tree<B>, should_unmount: bool) {
+		self.markup.drop(tree, should_unmount)
+	}
+}
+
 pub struct Context<M: Markup<B>, B: Backend> {
 	markup: M,
 	_b: PhantomData<B>,
@@ -97,6 +131,10 @@ where
 		M::has_own_node()
 	}
 
+	fn dynamic() -> bool {
+		true
+	}
+
 	fn render(&self, tree: &Tree<B>) {
 		if let Some(markup) = self.as_ref() {
 			markup.render(tree)
@@ -106,7 +144,11 @@ where
 	fn diff(&self, prev: &Self, tree: &Tree<B>) {
 		match (self, prev) {
 			(Some(next), None) => next.render(tree),
-			(Some(next), Some(prev)) => next.diff(prev, tree),
+			(Some(next), Some(prev)) => {
+				if M::dynamic() {
+					next.diff(prev, tree)
+				}
+			}
 			(None, Some(prev)) => prev.drop(tree, true),
 			(None, None) => {}
 		}
@@ -186,16 +228,19 @@ where
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
-		if !Self::dynamic() {
-			return;
-		}
-
 		let mut cursor: Option<Tree<BACKEND>> = None;
 
-		self.0
-			.diff(&prev.0, advance(tree, &mut cursor, A::has_own_node()));
-		self.1
-			.diff(&prev.1, advance(tree, &mut cursor, B::has_own_node()));
+		{
+			let tree = advance(tree, &mut cursor, A::has_own_node());
+			if A::dynamic() {
+				self.0.diff(&prev.0, tree)
+			}
+		}
+
+		if B::dynamic() {
+			self.1
+				.diff(&prev.1, advance(tree, &mut cursor, B::has_own_node()));
+		}
 	}
 
 	fn drop(&self, tree: &Tree<BACKEND>, should_unmount: bool) {
@@ -241,16 +286,30 @@ where
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
-		if !Self::dynamic() {
+		let mut cursor: Option<Tree<BACKEND>> = None;
+
+		{
+			let tree = advance(tree, &mut cursor, A::has_own_node());
+			if A::dynamic() {
+				self.0.diff(&prev.0, tree);
+			}
+		}
+
+		if !B::dynamic() && !C::dynamic() {
 			return;
 		}
 
-		let mut cursor: Option<Tree<BACKEND>> = None;
+		{
+			let tree = advance(tree, &mut cursor, B::has_own_node());
+			if B::dynamic() {
+				self.1.diff(&prev.1, tree);
+			}
+		}
 
-		self.0
-			.diff(&prev.0, advance(tree, &mut cursor, A::has_own_node()));
-		self.1
-			.diff(&prev.1, advance(tree, &mut cursor, B::has_own_node()));
+		if !C::dynamic() {
+			return;
+		}
+
 		self.2
 			.diff(&prev.2, advance(tree, &mut cursor, C::has_own_node()));
 	}
@@ -305,20 +364,45 @@ where
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
-		if !Self::dynamic() {
+		let mut cursor: Option<Tree<BACKEND>> = None;
+
+		{
+			let tree = advance(tree, &mut cursor, A::has_own_node());
+			if A::dynamic() {
+				self.0.diff(&prev.0, tree);
+			}
+		}
+
+		if !B::dynamic() && !C::dynamic() && !D::dynamic() {
 			return;
 		}
 
-		let mut cursor: Option<Tree<BACKEND>> = None;
+		{
+			let tree = advance(tree, &mut cursor, B::has_own_node());
+			if B::dynamic() {
+				self.1.diff(&prev.1, tree);
+			}
+		}
 
-		self.0
-			.diff(&prev.0, advance(tree, &mut cursor, A::has_own_node()));
-		self.1
-			.diff(&prev.1, advance(tree, &mut cursor, B::has_own_node()));
-		self.2
-			.diff(&prev.2, advance(tree, &mut cursor, C::has_own_node()));
-		self.3
-			.diff(&prev.3, advance(tree, &mut cursor, D::has_own_node()));
+		if !C::dynamic() && !D::dynamic() {
+			return;
+		}
+
+		{
+			let tree = advance(tree, &mut cursor, C::has_own_node());
+			if C::dynamic() {
+				self.2.diff(&prev.2, tree);
+			}
+		}
+
+		if !D::dynamic() {
+			return;
+		}
+
+		{
+			let tree = advance(tree, &mut cursor, D::has_own_node());
+			self.3.diff(&prev.3, tree);
+		}
 	}
 
 	fn drop(&self, tree: &Tree<BACKEND>, should_unmount: bool) {
@@ -382,22 +466,56 @@ where
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
-		if !Self::dynamic() {
+		let mut cursor: Option<Tree<BACKEND>> = None;
+
+		{
+			let tree = advance(tree, &mut cursor, A::has_own_node());
+			if A::dynamic() {
+				self.0.diff(&prev.0, tree);
+			}
+		}
+
+		if !B::dynamic() && !C::dynamic() && !D::dynamic() && !E::dynamic() {
 			return;
 		}
 
-		let mut cursor: Option<Tree<BACKEND>> = None;
+		{
+			let tree = advance(tree, &mut cursor, B::has_own_node());
+			if B::dynamic() {
+				self.1.diff(&prev.1, tree);
+			}
+		}
 
-		self.0
-			.diff(&prev.0, advance(tree, &mut cursor, A::has_own_node()));
-		self.1
-			.diff(&prev.1, advance(tree, &mut cursor, B::has_own_node()));
-		self.2
-			.diff(&prev.2, advance(tree, &mut cursor, C::has_own_node()));
-		self.3
-			.diff(&prev.3, advance(tree, &mut cursor, D::has_own_node()));
-		self.4
-			.diff(&prev.4, advance(tree, &mut cursor, E::has_own_node()));
+		if !C::dynamic() && !D::dynamic() && !E::dynamic() {
+			return;
+		}
+
+		{
+			let tree = advance(tree, &mut cursor, C::has_own_node());
+			if C::dynamic() {
+				self.2.diff(&prev.2, tree);
+			}
+		}
+
+		if !D::dynamic() || !E::dynamic() {
+			return;
+		}
+
+		{
+			let tree = advance(tree, &mut cursor, D::has_own_node());
+			if D::dynamic() {
+				self.3.diff(&prev.3, tree);
+			}
+		}
+
+		if !E::dynamic() {
+			return;
+		}
+
+		{
+			let tree = advance(tree, &mut cursor, E::has_own_node());
+			self.4.diff(&prev.4, tree);
+		}
 	}
 
 	fn drop(&self, tree: &Tree<BACKEND>, should_unmount: bool) {
@@ -445,6 +563,10 @@ where
 		T::has_own_node()
 	}
 
+	fn dynamic() -> bool {
+		T::dynamic()
+	}
+
 	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
 		(**self).diff(prev, tree)
 	}
@@ -465,6 +587,10 @@ where
 {
 	fn has_own_node() -> bool {
 		T::has_own_node()
+	}
+
+	fn dynamic() -> bool {
+		T::dynamic()
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {

@@ -24,10 +24,6 @@ impl<M: Markup<WebSys>> Markup<WebSys> for Portal<M> {
 	}
 
 	fn diff(&self, prev: &Self, tree: &crate::tree::Tree<WebSys>) {
-		if !Self::dynamic() {
-			return;
-		}
-
 		let subtree = subtree::<M, _>(&tree);
 		self.markup.diff(&prev.markup, &subtree);
 	}

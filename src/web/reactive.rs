@@ -562,7 +562,9 @@ where
 			);
 		}
 
-		next_markup.diff(&component.markup, &component.tree);
+		if M::dynamic() {
+			next_markup.diff(&component.markup, &component.tree);
+		}
 
 		component.markup = next_markup;
 

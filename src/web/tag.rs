@@ -37,10 +37,6 @@ where
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<WebSys>) {
-		if !Self::dynamic() {
-			return
-		}
-
 		if prev.tag != self.tag {
 			// re-render
 			let element = DOCUMENT.with(|d| d.create_element(self.tag).unwrap());
@@ -51,7 +47,9 @@ where
 			render_subtree(&self.markup, &tree);
 			tree.attach(prev)
 		} else {
-			self.markup.diff(&prev.markup, &subtree::<M, _>(tree));
+			if M::dynamic() {
+				self.markup.diff(&prev.markup, &subtree::<M, _>(tree));
+			}
 		}
 	}
 

@@ -79,6 +79,7 @@ where
 	}
 
 	fn drop(&self, tree: &Tree<WebSys>, _should_unmount: bool) {
+		tracing::info!("Drop event {}", self.event);
 		let data = tree.remove_data::<EventListenerData<F>>();
 		tree.closest_node()
 			.unchecked_ref::<HtmlElement>()

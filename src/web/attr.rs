@@ -12,7 +12,6 @@ pub struct ClassList<S: StringLike>(S);
 
 #[derive(Clone)]
 pub struct Attr<S1: StringLike, S2: StringLike>(S1, S2);
-
 pub trait StringLike: AsRef<str> {
 	const DYNAMIC: bool;
 }
@@ -59,10 +58,6 @@ impl<S: StringLike> Markup for ClassList<S> {
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<WebSys>) {
-		if !Self::dynamic() {
-			return;
-		}
-
 		if prev.0.as_ref() != self.0.as_ref() {
 			let element = tree.closest_node();
 			let element = element.unchecked_ref::<HtmlElement>();
@@ -99,10 +94,6 @@ impl<S1: StringLike, S2: StringLike> Markup for Attr<S1, S2> {
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<WebSys>) {
-		if !Self::dynamic() {
-			return;
-		}
-
 		if prev.1.as_ref() != self.1.as_ref() {
 			tree.closest_node()
 				.unchecked_ref::<HtmlElement>()

@@ -11,6 +11,10 @@ where
 	T2: Markup<B>,
 	B: Backend,
 {
+	fn dynamic() -> bool {
+		T1::dynamic() || T2::dynamic()
+	}
+
 	fn render(&self, tree: &crate::tree::Tree<B>) {
 		match self {
 			Either::A(a) => a.render(tree),
@@ -20,13 +24,21 @@ where
 
 	fn diff(&self, prev: &Self, tree: &crate::tree::Tree<B>) {
 		match (self, prev) {
-			(Either::A(next), Either::A(prev)) => next.diff(prev, tree),
+			(Either::A(next), Either::A(prev)) => {
+				if T1::dynamic() {
+					next.diff(prev, tree)
+				}
+			}
 			(Either::A(next), Either::B(prev)) => {
 				// We do not unmount here to allow next node to replace previous
 				prev.drop(tree, false);
 				next.render(tree);
 			}
-			(Either::B(next), Either::B(prev)) => next.diff(prev, tree),
+			(Either::B(next), Either::B(prev)) => {
+				if T2::dynamic() {
+					next.diff(prev, tree)
+				}
+			}
 			(Either::B(next), Either::A(prev)) => {
 				prev.drop(tree, false);
 				next.render(tree);

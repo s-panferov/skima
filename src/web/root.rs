@@ -52,13 +52,16 @@ where
 	}
 
 	pub fn update(&mut self, next: M) {
-		let tree = if self.is_ephemeral {
-			self.tree.clone()
-		} else {
-			subtree::<M, _>(&self.tree)
-		};
+		if M::dynamic() {
+			let tree = if self.is_ephemeral {
+				self.tree.clone()
+			} else {
+				subtree::<M, _>(&self.tree)
+			};
 
-		next.diff(&self.markup, &tree);
+			next.diff(&self.markup, &tree);
+		}
+
 		self.markup = next;
 	}
 }

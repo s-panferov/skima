@@ -22,6 +22,7 @@ pub mod portal;
 pub mod reactive;
 pub mod root;
 pub mod routing;
+pub mod style;
 pub mod tag;
 pub mod text;
 
@@ -32,7 +33,8 @@ pub mod prelude {
 	pub use crate::web::event::{on, on_if};
 	pub use crate::web::html::*;
 	pub use crate::web::reactive::reactive;
-	pub use crate::Markup;
+	pub use crate::web::style::property;
+	pub use crate::{dynamic, Markup};
 }
 
 pub use attr::*;
