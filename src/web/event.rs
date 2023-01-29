@@ -1,3 +1,4 @@
+use std::any::TypeId;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -8,37 +9,58 @@ use web_sys::HtmlElement;
 use crate::tree::Tree;
 use crate::web::{Callback, Markup, WebSys};
 
-pub(crate) struct EventListener<F>
-where
-	F: Fn(web_sys::Event) + ?Sized,
-{
-	pub(crate) event: &'static str,
-	pub(crate) callback: Rc<F>,
+pub trait EventCallback: Clone + 'static {
+	fn type_id(&self) -> TypeId;
+	fn call(&self, event: web_sys::Event);
 }
 
-impl<F> EventListener<F>
+impl<T> EventCallback for Rc<T>
 where
-	F: Fn(web_sys::Event),
+	T: Fn(web_sys::Event) + 'static,
 {
-	pub fn new(event: &'static str, func: F) -> Self {
+	fn call(&self, event: web_sys::Event) {
+		self(event)
+	}
+
+	fn type_id(&self) -> TypeId {
+		TypeId::of::<T>()
+	}
+}
+
+pub(crate) struct EventListener<C>
+where
+	C: EventCallback,
+{
+	pub(crate) event: &'static str,
+	key: u64,
+	pub(crate) callback: C,
+}
+
+impl<C> EventListener<C>
+where
+	C: EventCallback,
+{
+	pub fn new(event: &'static str, callback: C) -> Self {
+		let key = fxhash::hash64(&callback.type_id());
 		EventListener {
 			event,
-			callback: Rc::new(func),
+			callback,
+			key,
 		}
 	}
 }
 
-struct EventListenerData<F>
+struct EventListenerData<C>
 where
-	F: Fn(web_sys::Event) + ?Sized + 'static,
+	C: EventCallback,
 {
-	func: RefCell<Rc<F>>,
+	func: RefCell<C>,
 	closure: Closure<dyn Fn(web_sys::Event)>,
 }
 
-impl<F> Markup<WebSys> for EventListener<F>
+impl<C> Markup<WebSys> for EventListener<C>
 where
-	F: Fn(web_sys::Event) + ?Sized + 'static,
+	C: EventCallback,
 {
 	fn has_own_node() -> bool {
 		false
@@ -52,35 +74,34 @@ where
 		tracing::info!("Rendering event {}", self.event);
 		tracing::info!("Event tree {:?}", tree);
 
-		let data =
-			Rc::<EventListenerData<F>>::new_cyclic(|this| {
-				let data = this.clone();
-				let closure = Closure::wrap(Box::new(move |event| {
-					(data.upgrade().unwrap().func.borrow())(event)
-				}) as Box<dyn Fn(web_sys::Event)>);
+		let data = Rc::<EventListenerData<C>>::new_cyclic(|this| {
+			let data = this.clone();
+			let closure = Closure::wrap(Box::new(move |event| {
+				(data.upgrade().unwrap().func.borrow()).call(event)
+			}) as Box<dyn Fn(web_sys::Event)>);
 
-				EventListenerData {
-					func: RefCell::new(self.callback.clone()),
-					closure,
-				}
-			});
+			EventListenerData {
+				func: RefCell::new(self.callback.clone()),
+				closure,
+			}
+		});
 
 		tree.closest_node()
 			.unchecked_ref::<HtmlElement>()
 			.add_event_listener_with_callback(&self.event, data.closure.as_ref().unchecked_ref())
 			.unwrap();
 
-		tree.set_data(data);
+		tree.set_data_with_key(self.key, data);
 	}
 
 	fn diff(&self, _prev: &Self, tree: &Tree<WebSys>) {
-		let data = tree.data::<EventListenerData<F>>();
+		let data = tree.data_with_key::<EventListenerData<C>>(self.key);
 		*data.func.borrow_mut() = self.callback.clone();
 	}
 
 	fn drop(&self, tree: &Tree<WebSys>, _should_unmount: bool) {
 		tracing::info!("Drop event {}", self.event);
-		let data = tree.remove_data::<EventListenerData<F>>();
+		let data = tree.remove_data_with_key::<EventListenerData<C>>(self.key);
 		tree.closest_node()
 			.unchecked_ref::<HtmlElement>()
 			.remove_event_listener_with_callback(self.event, data.closure.as_ref().unchecked_ref())
@@ -89,40 +110,34 @@ where
 }
 
 pub trait IntoEventCallback {
-	type Fn: Fn(web_sys::Event) + ?Sized + 'static;
-	fn into_fn(self) -> Rc<Self::Fn>;
+	type Callback: EventCallback;
+	fn into_callback(self) -> Self::Callback;
 }
 
 impl<F> IntoEventCallback for F
 where
 	F: Fn(web_sys::Event) + 'static,
 {
-	type Fn = Self;
-	fn into_fn(self) -> Rc<Self::Fn> {
+	type Callback = Rc<Self>;
+	fn into_callback(self) -> Self::Callback {
 		Rc::new(self)
 	}
 }
 
 impl IntoEventCallback for Callback<dyn Fn(web_sys::Event)> {
-	type Fn = dyn Fn(web_sys::Event);
-	fn into_fn(self) -> Rc<Self::Fn> {
-		self.0.clone()
+	type Callback = Self;
+	fn into_callback(self) -> Self::Callback {
+		self
+	}
+}
+
+impl IntoEventCallback for Callback<dyn Fn()> {
+	type Callback = Self;
+	fn into_callback(self) -> Self::Callback {
+		self
 	}
 }
 
 pub fn on(event: &'static str, callback: impl IntoEventCallback) -> impl Markup {
-	EventListener {
-		event,
-		callback: callback.into_fn(),
-	}
-}
-
-pub fn on_if<T: 'static, F>(val: Option<T>, event: &'static str, callback: F) -> impl Markup
-where
-	F: Fn(&T, web_sys::Event) + 'static,
-{
-	val.map(|val| EventListener {
-		event,
-		callback: Rc::new(move |v| (callback)(&val, v)),
-	})
+	EventListener::new(event, callback.into_callback())
 }

@@ -1,41 +1,47 @@
-use std::any::TypeId;
+use std::any::{Any, TypeId};
 use std::hash::Hash;
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::rc::{Rc, Weak};
 
+use super::event::EventCallback;
 use super::reactive::Extension;
 use crate::web::reactive::{ReactiveContext, WithMemo};
 
-pub struct Callback<T: ?Sized>(pub Rc<T>);
+pub struct Callback<T: ?Sized>(pub Rc<T>, TypeId);
 
-// impl<F: ?Sized, A: Tuple> Fn<A> for Callback<F>
-// where
-// 	F: Fn<A>,
-// {
-// 	extern "rust-call" fn call(&self, args: A) {
-// 		self.0.call(args);
-// 	}
-// }
+impl<T> EventCallback for Callback<T>
+where
+	T: Fn(web_sys::Event) + 'static,
+{
+	fn call(&self, event: web_sys::Event) {
+		(self.0)(event)
+	}
 
-// impl<F: ?Sized, A: Tuple> FnMut<A> for Callback<F>
-// where
-// 	F: FnMut<A>,
-// {
-// 	extern "rust-call" fn call_mut(&mut self, _args: A) {
-// 		panic!()
-// 	}
-// }
+	fn type_id(&self) -> TypeId {
+		self.1
+	}
+}
 
-// impl<F: ?Sized, A: Tuple> FnOnce<A> for Callback<F>
-// where
-// 	F: FnOnce<A>,
-// {
-// 	type Output = ();
-// 	extern "rust-call" fn call_once(self, _args: A) {
-// 		panic!()
-// 	}
-// }
+impl EventCallback for Callback<dyn Fn(web_sys::Event)> {
+	fn call(&self, event: web_sys::Event) {
+		(self.0)(event)
+	}
+
+	fn type_id(&self) -> TypeId {
+		self.1
+	}
+}
+
+impl EventCallback for Callback<dyn Fn()> {
+	fn call(&self, _: web_sys::Event) {
+		(self.0)()
+	}
+
+	fn type_id(&self) -> TypeId {
+		self.1
+	}
+}
 
 impl<T: ?Sized> PartialEq for Callback<T> {
 	fn eq(&self, other: &Self) -> bool {
@@ -51,15 +57,20 @@ impl<T: ?Sized> Hash for Callback<T> {
 
 impl<T: ?Sized> Clone for Callback<T> {
 	fn clone(&self) -> Self {
-		Callback(self.0.clone())
+		Callback(self.0.clone(), self.1.clone())
 	}
 }
 
-impl<T> Callback<T> {
+impl<T: 'static> Callback<T> {
 	pub fn new(func: T) -> Self {
-		Callback(Rc::new(func))
+		Callback(Rc::new(func), TypeId::of::<T>())
+	}
+
+	pub fn to_dyn<U: ?Sized>(self, func: impl FnOnce(Rc<T>) -> Rc<U>) -> Callback<U> {
+		Callback(func(self.0), self.1)
 	}
 }
+
 impl<T: ?Sized> Callback<T> {
 	pub fn as_ptr(&self) -> *const T {
 		Rc::as_ptr(&self.0)
@@ -185,7 +196,7 @@ where
 				.unwrap();
 
 			if callback.memo == memo {
-				return Callback(callback);
+				return Callback(callback, type_id);
 			}
 		}
 
@@ -200,7 +211,7 @@ where
 			.borrow_mut()
 			.insert(type_id, callback.clone());
 
-		return Callback(callback);
+		return Callback(callback, type_id);
 	}
 
 	pub fn callback_0<F>(&self, func: F) -> Callback<dyn Fn()>
@@ -233,7 +244,7 @@ where
 				.unwrap();
 
 			if callback.memo == memo {
-				return Callback(callback);
+				return Callback(callback, type_id);
 			}
 		}
 
@@ -249,7 +260,7 @@ where
 			.borrow_mut()
 			.insert(type_id, callback.clone());
 
-		return Callback(callback);
+		return Callback(callback, type_id);
 	}
 
 	pub fn callback_1<F, R, T: 'static>(&self, func: F) -> Callback<dyn Fn(T) -> R>

@@ -128,11 +128,11 @@ impl<B: Backend> Tree<B> {
 	}
 
 	#[inline]
-	pub fn data<T: Any>(&self) -> Rc<T> {
+	pub fn data_with_key<T: Any>(&self, key: u64) -> Rc<T> {
 		let data: Rc<dyn Any> = (*self
 			.data
 			.borrow()
-			.get(&fxhash::hash64(&TypeId::of::<T>()))
+			.get(&key)
 			.as_ref()
 			.expect(&type_name::<T>()))
 		.clone();
@@ -141,30 +141,43 @@ impl<B: Backend> Tree<B> {
 	}
 
 	#[inline]
-	pub fn try_data<T: Any>(&self) -> Option<Rc<T>> {
+	pub fn try_data_with_key<T: Any>(&self, key: u64) -> Option<Rc<T>> {
 		self.data
 			.borrow()
-			.get(&fxhash::hash64(&TypeId::of::<T>()))
+			.get(&key)
 			.as_ref()
 			.map(|d| (*d).clone().downcast::<T>().unwrap())
 	}
 
 	#[inline]
-	pub fn remove_data<T: Any>(&self) -> Rc<T> {
-		let data: Rc<dyn Any> = self
-			.data
-			.borrow_mut()
-			.remove(&fxhash::hash64(&TypeId::of::<T>()))
-			.unwrap();
-
+	pub fn remove_data_with_key<T: Any>(&self, key: u64) -> Rc<T> {
+		let data: Rc<dyn Any> = self.data.borrow_mut().remove(&key).unwrap();
 		data.downcast::<T>().unwrap()
 	}
 
 	#[inline]
+	pub fn set_data_with_key<T: Any>(&self, key: u64, value: Rc<T>) {
+		self.data.borrow_mut().insert(key, value);
+	}
+
+	#[inline]
+	pub fn data<T: Any>(&self) -> Rc<T> {
+		self.data_with_key::<T>(fxhash::hash64(&TypeId::of::<T>()))
+	}
+
+	#[inline]
+	pub fn try_data<T: Any>(&self) -> Option<Rc<T>> {
+		self.try_data_with_key::<T>(fxhash::hash64(&TypeId::of::<T>()))
+	}
+
+	#[inline]
+	pub fn remove_data<T: Any>(&self) -> Rc<T> {
+		self.remove_data_with_key::<T>(fxhash::hash64(&TypeId::of::<T>()))
+	}
+
+	#[inline]
 	pub fn set_data<T: Any>(&self, value: Rc<T>) {
-		self.data
-			.borrow_mut()
-			.insert(fxhash::hash64(&TypeId::of::<T>()), value);
+		self.set_data_with_key::<T>(fxhash::hash64(&TypeId::of::<T>()), value)
 	}
 
 	pub fn insert_at(&self, index: usize) -> Self {

@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use bump::bump_in;
 pub use callback::Callback;
-use event::{on, on_if};
+use event::on;
 use observe::{batch, Var};
 use reactive::reactive;
 
@@ -30,7 +30,7 @@ pub mod prelude {
 	pub use crate::reference::reference;
 	pub use crate::web::attr::{attr, classlist, classname};
 	pub use crate::web::callback::Callback;
-	pub use crate::web::event::{on, on_if};
+	pub use crate::web::event::on;
 	pub use crate::web::html::*;
 	pub use crate::web::reactive::reactive;
 	pub use crate::web::style::property;
@@ -114,7 +114,7 @@ fn button(props: ButtonProps) -> impl Markup {
 	div((
 		"Button",
 		props.value.to_string(),
-		on_if(props.on_click, "click", move |f, _| f(props.value)),
+		props.on_click.map(|v| on("click", move |_| v(props.value))),
 	))
 }
 
