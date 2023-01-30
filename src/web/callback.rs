@@ -18,6 +18,10 @@ where
 		(self.0)(event)
 	}
 
+	fn eq(&self, other: &Self) -> bool {
+		Rc::ptr_eq(&self.0, &other.0)
+	}
+
 	fn type_id(&self) -> TypeId {
 		self.1
 	}
@@ -28,6 +32,10 @@ impl EventCallback for Callback<dyn Fn(web_sys::Event)> {
 		(self.0)(event)
 	}
 
+	fn eq(&self, other: &Self) -> bool {
+		Rc::ptr_eq(&self.0, &other.0)
+	}
+
 	fn type_id(&self) -> TypeId {
 		self.1
 	}
@@ -36,6 +44,10 @@ impl EventCallback for Callback<dyn Fn(web_sys::Event)> {
 impl EventCallback for Callback<dyn Fn()> {
 	fn call(&self, _: web_sys::Event) {
 		(self.0)()
+	}
+
+	fn eq(&self, other: &Self) -> bool {
+		Rc::ptr_eq(&self.0, &other.0)
 	}
 
 	fn type_id(&self) -> TypeId {

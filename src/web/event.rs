@@ -11,6 +11,7 @@ use crate::web::{Callback, Markup, WebSys};
 
 pub trait EventCallback: Clone + 'static {
 	fn type_id(&self) -> TypeId;
+	fn eq(&self, other: &Self) -> bool;
 	fn call(&self, event: web_sys::Event);
 }
 
@@ -20,6 +21,10 @@ where
 {
 	fn call(&self, event: web_sys::Event) {
 		self(event)
+	}
+
+	fn eq(&self, other: &Self) -> bool {
+		Rc::ptr_eq(self, other)
 	}
 
 	fn type_id(&self) -> TypeId {
@@ -96,7 +101,9 @@ where
 
 	fn diff(&self, _prev: &Self, tree: &Tree<WebSys>) {
 		let data = tree.data_with_key::<EventListenerData<C>>(self.key);
-		*data.func.borrow_mut() = self.callback.clone();
+		if !self.callback.eq(&_prev.callback) {
+			*data.func.borrow_mut() = self.callback.clone();
+		}
 	}
 
 	fn drop(&self, tree: &Tree<WebSys>, _should_unmount: bool) {
