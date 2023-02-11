@@ -32,7 +32,7 @@ pub fn classname<S: StringLike>(classname: S) -> Attr<&'static str, S> {
 	attr("class", classname)
 }
 
-pub fn classlist<S: StringLike>(classname: S) -> ClassList<S> {
+pub const fn classlist<S: StringLike>(classname: S) -> ClassList<S> {
 	ClassList(classname)
 }
 
