@@ -96,11 +96,13 @@ where
 			.add_event_listener_with_callback(&self.event, data.closure.as_ref().unchecked_ref())
 			.unwrap();
 
-		tree.set_data_with_key(self.key, data);
+		tree.data_mut().set_with_key(self.key, data);
 	}
 
 	fn diff(&self, _prev: &Self, tree: &Tree<WebSys>) {
-		let data = tree.data_with_key::<EventListenerData<C>>(self.key);
+		let data = tree
+			.data_mut()
+			.get_with_key::<Rc<EventListenerData<C>>>(self.key);
 		if !self.callback.eq(&_prev.callback) {
 			*data.func.borrow_mut() = self.callback.clone();
 		}
@@ -108,7 +110,10 @@ where
 
 	fn drop(&self, tree: &Tree<WebSys>, _should_unmount: bool) {
 		tracing::info!("Drop event {}", self.event);
-		let data = tree.remove_data_with_key::<EventListenerData<C>>(self.key);
+		let data = tree
+			.data_mut()
+			.remove_with_key::<Rc<EventListenerData<C>>>(self.key);
+
 		tree.closest_node()
 			.unchecked_ref::<HtmlElement>()
 			.remove_event_listener_with_callback(self.event, data.closure.as_ref().unchecked_ref())

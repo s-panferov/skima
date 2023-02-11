@@ -7,6 +7,7 @@ use std::rc::{Rc, Weak};
 use super::event::EventCallback;
 use super::reactive::Extension;
 use crate::web::reactive::{ReactiveContext, WithMemo};
+use crate::Backend;
 
 pub struct Callback<T: ?Sized>(pub Rc<T>, TypeId);
 
@@ -98,19 +99,20 @@ impl<T: ?Sized> Deref for Callback<T> {
 
 impl<T: ?Sized> Eq for Callback<T> {}
 
-struct Callback0<F, R, M, E>
+struct Callback0<F, R, M, B, E>
 where
-	F: Fn(&mut ReactiveContext<E>) -> R,
+	F: Fn(&mut ReactiveContext<B, E>) -> R,
 {
 	func: F,
 	memo: M,
-	context: Weak<dyn crate::web::reactive::Renderable<E>>,
+	context: Weak<dyn crate::web::reactive::Renderable<B, E>>,
 }
 
-impl<F, R, M, E> Fn<()> for Callback0<F, R, M, E>
+impl<F, R, M, B, E> Fn<()> for Callback0<F, R, M, B, E>
 where
-	F: Fn(&mut ReactiveContext<E>) -> R,
+	F: Fn(&mut ReactiveContext<B, E>) -> R,
 	R: Default,
+	B: Backend,
 {
 	extern "rust-call" fn call(&self, _args: ()) -> R {
 		if let Some(context) = self.context.upgrade() {
@@ -121,20 +123,22 @@ where
 	}
 }
 
-impl<F, R, M, E> FnMut<()> for Callback0<F, R, M, E>
+impl<F, R, M, B, E> FnMut<()> for Callback0<F, R, M, B, E>
 where
-	F: Fn(&mut ReactiveContext<E>) -> R,
+	F: Fn(&mut ReactiveContext<B, E>) -> R,
 	R: Default,
+	B: Backend,
 {
 	extern "rust-call" fn call_mut(&mut self, args: ()) -> R {
 		self.call(args)
 	}
 }
 
-impl<F, R, M, E> FnOnce<()> for Callback0<F, R, M, E>
+impl<F, R, M, B, E> FnOnce<()> for Callback0<F, R, M, B, E>
 where
-	F: Fn(&mut ReactiveContext<E>) -> R,
+	F: Fn(&mut ReactiveContext<B, E>) -> R,
 	R: Default,
+	B: Backend,
 {
 	extern "rust-call" fn call_once(self, args: ()) -> R {
 		self.call(args)
@@ -143,20 +147,21 @@ where
 	type Output = R;
 }
 
-struct Callback1<F, R, T, M, E>
+struct Callback1<F, R, T, M, B, E>
 where
-	F: Fn(&mut ReactiveContext<E>, T) -> R,
+	F: Fn(&mut ReactiveContext<B, E>, T) -> R,
 {
 	func: F,
 	memo: M,
-	context: Weak<dyn crate::web::reactive::Renderable<E>>,
+	context: Weak<dyn crate::web::reactive::Renderable<B, E>>,
 	_t: PhantomData<T>,
 }
 
-impl<F, R, T, M, E> Fn<(T,)> for Callback1<F, R, T, M, E>
+impl<F, R, T, M, B, E> Fn<(T,)> for Callback1<F, R, T, M, B, E>
 where
-	F: Fn(&mut ReactiveContext<E>, T) -> R,
+	F: Fn(&mut ReactiveContext<B, E>, T) -> R,
 	R: Default,
+	B: Backend,
 {
 	extern "rust-call" fn call(&self, args: (T,)) -> R {
 		if let Some(context) = self.context.upgrade() {
@@ -167,20 +172,22 @@ where
 	}
 }
 
-impl<F, R, T, M, E> FnMut<(T,)> for Callback1<F, R, T, M, E>
+impl<F, R, T, M, B, E> FnMut<(T,)> for Callback1<F, R, T, M, B, E>
 where
-	F: Fn(&mut ReactiveContext<E>, T) -> R,
+	F: Fn(&mut ReactiveContext<B, E>, T) -> R,
 	R: Default,
+	B: Backend,
 {
 	extern "rust-call" fn call_mut(&mut self, args: (T,)) -> R {
 		self.call(args)
 	}
 }
 
-impl<F, R, T, M, E> FnOnce<(T,)> for Callback1<F, R, T, M, E>
+impl<F, R, T, M, B, E> FnOnce<(T,)> for Callback1<F, R, T, M, B, E>
 where
-	F: Fn(&mut ReactiveContext<E>, T) -> R,
+	F: Fn(&mut ReactiveContext<B, E>, T) -> R,
 	R: Default,
+	B: Backend,
 {
 	extern "rust-call" fn call_once(self, args: (T,)) -> R {
 		self.call(args)
@@ -189,7 +196,7 @@ where
 	type Output = R;
 }
 
-impl<E: 'static> ReactiveContext<E>
+impl<B: Backend + 'static, E: 'static> ReactiveContext<B, E>
 where
 	Self: Extension<WithMemo>,
 {
@@ -203,7 +210,7 @@ where
 
 		let with_memo: &WithMemo = self.try_extension().unwrap();
 		if let Some(cb) = with_memo.memo.borrow_mut().get(&type_id) {
-			let callback = Rc::downcast::<Callback0<F, R, M, E>>(cb.clone())
+			let callback = Rc::downcast::<Callback0<F, R, M, B, E>>(cb.clone())
 				.map_err(|_| ())
 				.unwrap();
 
@@ -251,7 +258,7 @@ where
 
 		let with_memo: &WithMemo = self.try_extension().unwrap();
 		if let Some(cb) = with_memo.memo.borrow_mut().get(&type_id) {
-			let callback = Rc::downcast::<Callback1<F, R, T, M, E>>(cb.clone())
+			let callback = Rc::downcast::<Callback1<F, R, T, M, B, E>>(cb.clone())
 				.map_err(|_| ())
 				.unwrap();
 

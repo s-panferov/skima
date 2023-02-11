@@ -43,7 +43,7 @@ pub use tag::html;
 
 pub type Target = WebSys;
 
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct WebSys {}
 
 impl WebSys {}

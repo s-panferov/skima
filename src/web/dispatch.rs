@@ -3,6 +3,7 @@ use std::rc::Rc;
 
 use super::Callback;
 use crate::action::Action;
+use crate::anydata::Envelope;
 use crate::tree::Tree;
 use crate::web::{Markup, WebSys};
 use crate::Backend;
@@ -22,6 +23,20 @@ pub type ActionHandler = Callback<dyn Fn(Box<dyn Action>) -> ActionResult>;
 
 pub struct Dispatcher {
 	func: Rc<dyn Fn(Box<dyn Action>)>,
+}
+
+// FIXME: avoid double boxing somehow
+impl Envelope for Dispatcher {
+	type Output = Dispatcher;
+
+	fn from_dyn(rc: Rc<dyn Any>) -> Self::Output {
+		let boxed = Rc::downcast::<Dispatcher>(rc).map_err(|_| ()).unwrap();
+		(&*boxed).clone()
+	}
+
+	fn to_dyn(self) -> Rc<dyn Any> {
+		Rc::new(self)
+	}
 }
 
 impl Clone for Dispatcher {
@@ -57,7 +72,7 @@ pub trait DispatcherExt {
 
 impl DispatcherExt for Tree<WebSys> {
 	fn dispatch<T: Action>(&self, action: T) {
-		if let Some(dispatcher) = self.try_data::<Dispatcher>() {
+		if let Some(dispatcher) = self.data().try_get::<Rc<Dispatcher>>() {
 			dispatcher.dispatch(action)
 		} else {
 			if let Some(parent) = &self.parent {
@@ -78,7 +93,7 @@ impl<T: Any + 'static, M: Markup<WebSys>> Markup<WebSys> for Provide<T, M> {
 	}
 
 	fn render(&self, tree: &crate::tree::Tree<WebSys>) {
-		tree.set_data(self.data.clone());
+		tree.data_mut().set(self.data.clone());
 		self.markup.render(tree);
 	}
 
@@ -87,7 +102,7 @@ impl<T: Any + 'static, M: Markup<WebSys>> Markup<WebSys> for Provide<T, M> {
 	}
 
 	fn drop(&self, tree: &crate::tree::Tree<WebSys>, should_unmount: bool) {
-		tree.remove_data::<T>();
+		tree.data_mut().remove::<Rc<T>>();
 		self.markup.drop(tree, should_unmount)
 	}
 }

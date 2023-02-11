@@ -73,12 +73,12 @@ where
 		}
 
 		std::mem::drop(rendered);
-		parent.set_data(data);
+		parent.data_mut().set(data);
 	}
 
 	// TODO: implement key-based moves
 	fn diff(&self, prev: &Self, tree: &crate::tree::Tree<B>) {
-		let data = tree.data::<ListData<K, M>>();
+		let data = tree.data().get::<Rc<ListData<K, M>>>();
 		let mut rendered = data.rendered.borrow_mut();
 
 		let mut next_iter = self.data.iter().de_peekable();
@@ -199,7 +199,7 @@ where
 	}
 
 	fn drop(&self, tree: &Tree<B>, should_unmount: bool) {
-		let data = tree.data::<ListData<K, M>>();
+		let data = tree.data_mut().remove::<Rc<ListData<K, M>>>();
 		let rendered = data.rendered.borrow_mut();
 
 		let mut cursor = None;

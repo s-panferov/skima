@@ -3,6 +3,7 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
+use crate::anydata::Envelope;
 use crate::tree::Tree;
 use crate::web::{Backend, Markup};
 
@@ -11,22 +12,13 @@ pub struct ConstantContext<B: Backend> {
 }
 
 impl<B: Backend> ConstantContext<B> {
-	pub fn with_memo<T: Clone + Into<Rc<dyn Any>> + 'static>(
-		&mut self,
-		func: impl FnOnce() -> T,
-	) -> T
-	where
-		Rc<dyn Any>: TryInto<T>,
-	{
-		let tid = TypeId::of::<T>();
-		let hash = fxhash::hash64(&tid);
-		let mut memo = self.tree.data.borrow_mut();
-		if let Some(item) = memo.get(&hash) {
-			Rc::try_into(item.clone()).map_err(|_| ()).unwrap()
+	pub fn with_memo<T: Envelope + 'static>(&mut self, func: impl FnOnce() -> T) -> T::Output {
+		if let Some(item) = self.tree.data().try_get::<T>() {
+			item
 		} else {
 			let t = func();
-			memo.insert(hash, t.clone().into());
-			t
+			self.tree.data_mut().set(t);
+			self.tree.data().get::<T>()
 		}
 	}
 }

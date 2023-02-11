@@ -1,5 +1,5 @@
 use std::any::{type_name, Any, TypeId};
-use std::cell::{Ref, RefCell};
+use std::cell::{Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::Deref;
@@ -8,6 +8,7 @@ use std::rc::Rc;
 use by_address::ByAddress;
 use indexmap::IndexSet;
 
+use crate::anydata::AnyData;
 use crate::web::dispatch::ActionHandler;
 use crate::Backend;
 
@@ -51,7 +52,7 @@ pub struct TreeInner<B: Backend> {
 	pub(crate) capture: RefCell<HashMap<u64, ActionHandler>>,
 
 	// Mutable element state
-	pub data: RefCell<HashMap<u64, Rc<dyn Any>>>,
+	pub data: RefCell<AnyData>,
 }
 
 impl<B: Backend> Debug for Tree<B>
@@ -127,59 +128,6 @@ impl<B: Backend> Tree<B> {
 		fiber
 	}
 
-	#[inline]
-	pub fn data_with_key<T: Any>(&self, key: u64) -> Rc<T> {
-		let data: Rc<dyn Any> = (*self
-			.data
-			.borrow()
-			.get(&key)
-			.as_ref()
-			.expect(&type_name::<T>()))
-		.clone();
-
-		data.downcast::<T>().unwrap()
-	}
-
-	#[inline]
-	pub fn try_data_with_key<T: Any>(&self, key: u64) -> Option<Rc<T>> {
-		self.data
-			.borrow()
-			.get(&key)
-			.as_ref()
-			.map(|d| (*d).clone().downcast::<T>().unwrap())
-	}
-
-	#[inline]
-	pub fn remove_data_with_key<T: Any>(&self, key: u64) -> Rc<T> {
-		let data: Rc<dyn Any> = self.data.borrow_mut().remove(&key).unwrap();
-		data.downcast::<T>().unwrap()
-	}
-
-	#[inline]
-	pub fn set_data_with_key<T: Any>(&self, key: u64, value: Rc<T>) {
-		self.data.borrow_mut().insert(key, value);
-	}
-
-	#[inline]
-	pub fn data<T: Any>(&self) -> Rc<T> {
-		self.data_with_key::<T>(fxhash::hash64(&TypeId::of::<T>()))
-	}
-
-	#[inline]
-	pub fn try_data<T: Any>(&self) -> Option<Rc<T>> {
-		self.try_data_with_key::<T>(fxhash::hash64(&TypeId::of::<T>()))
-	}
-
-	#[inline]
-	pub fn remove_data<T: Any>(&self) -> Rc<T> {
-		self.remove_data_with_key::<T>(fxhash::hash64(&TypeId::of::<T>()))
-	}
-
-	#[inline]
-	pub fn set_data<T: Any>(&self, value: Rc<T>) {
-		self.set_data_with_key::<T>(fxhash::hash64(&TypeId::of::<T>()), value)
-	}
-
 	pub fn insert_at(&self, index: usize) -> Self {
 		let tree = Tree(Rc::new(TreeInner {
 			level: self.level + 1,
@@ -232,6 +180,14 @@ impl<B: Backend> Tree<B> {
 
 	pub fn first_child(&self) -> Tree<B> {
 		self.children.borrow().first().as_ref().unwrap().0.clone()
+	}
+
+	pub fn data(&self) -> Ref<AnyData> {
+		self.data.borrow()
+	}
+
+	pub fn data_mut(&self) -> RefMut<AnyData> {
+		self.data.borrow_mut()
 	}
 
 	pub fn closest_node(&self) -> B::Node {

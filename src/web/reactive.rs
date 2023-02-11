@@ -12,7 +12,9 @@ use wasm_bindgen::prelude::{wasm_bindgen, Closure};
 use wasm_bindgen::JsValue;
 
 use super::dispatch::ActionResult;
+use super::WebSys;
 use crate::action::Action;
+use crate::anydata::Envelope;
 use crate::dont_panic;
 use crate::reference::Mutable;
 use crate::tree::Tree;
@@ -41,10 +43,11 @@ pub struct WithState {
 	state: HashMap<TypeId, Box<dyn Any>>,
 }
 
-pub struct ReactiveContext<E = (WithMemo, WithReactions, WithState)> {
-	pub(crate) effects: RefCell<IndexMap<TypeId, EffectContext<E>>>,
-	pub(crate) renderable: Weak<dyn Renderable<E>>,
+pub struct ReactiveContext<B: Backend = WebSys, E = (WithMemo, WithReactions, WithState)> {
+	pub(crate) effects: RefCell<IndexMap<TypeId, EffectContext<B, E>>>,
+	pub(crate) renderable: Weak<dyn Renderable<B, E>>,
 	derived: Weak<dyn Derived>,
+	tree: Tree<B>,
 	ext: E,
 }
 
@@ -58,7 +61,7 @@ pub trait ExtensionMut<T> {
 	fn try_extension_mut(&mut self) -> Option<&mut T>;
 }
 
-impl<A: 'static, T: 'static> ExtensionMut<T> for ReactiveContext<(A,)> {
+impl<BACKEND: Backend, A: 'static, T: 'static> ExtensionMut<T> for ReactiveContext<BACKEND, (A,)> {
 	fn extension_mut(&mut self) -> &mut T {
 		if let Ok(t) = cast!(&mut self.ext.0, &mut T) {
 			return t;
@@ -76,7 +79,9 @@ impl<A: 'static, T: 'static> ExtensionMut<T> for ReactiveContext<(A,)> {
 	}
 }
 
-impl<A: 'static, B: 'static, T: 'static> ExtensionMut<T> for ReactiveContext<(A, B)> {
+impl<BACKEND: Backend, A: 'static, B: 'static, T: 'static> ExtensionMut<T>
+	for ReactiveContext<BACKEND, (A, B)>
+{
 	fn extension_mut(&mut self) -> &mut T {
 		if let Ok(t) = cast!(&mut self.ext.0, &mut T) {
 			return t;
@@ -98,8 +103,8 @@ impl<A: 'static, B: 'static, T: 'static> ExtensionMut<T> for ReactiveContext<(A,
 	}
 }
 
-impl<A: 'static, B: 'static, C: 'static, T: 'static> ExtensionMut<T>
-	for ReactiveContext<(A, B, C)>
+impl<BACKEND: Backend, A: 'static, B: 'static, C: 'static, T: 'static> ExtensionMut<T>
+	for ReactiveContext<BACKEND, (A, B, C)>
 {
 	fn extension_mut(&mut self) -> &mut T {
 		if let Ok(t) = cast!(&mut self.ext.0, &mut T) {
@@ -126,8 +131,8 @@ impl<A: 'static, B: 'static, C: 'static, T: 'static> ExtensionMut<T>
 	}
 }
 
-impl<A: 'static, B: 'static, C: 'static, D: 'static, T: 'static> ExtensionMut<T>
-	for ReactiveContext<(A, B, C, D)>
+impl<BACKEND: Backend, A: 'static, B: 'static, C: 'static, D: 'static, T: 'static> ExtensionMut<T>
+	for ReactiveContext<BACKEND, (A, B, C, D)>
 {
 	fn extension_mut(&mut self) -> &mut T {
 		if let Ok(t) = cast!(&mut self.ext.0, &mut T) {
@@ -158,7 +163,7 @@ impl<A: 'static, B: 'static, C: 'static, D: 'static, T: 'static> ExtensionMut<T>
 	}
 }
 
-impl<A: 'static, T: 'static> Extension<T> for ReactiveContext<(A,)> {
+impl<BACKEND: Backend, A: 'static, T: 'static> Extension<T> for ReactiveContext<BACKEND, (A,)> {
 	fn extension(&self) -> &T {
 		if let Ok(t) = cast!(&self.ext.0, &T) {
 			return t;
@@ -176,7 +181,9 @@ impl<A: 'static, T: 'static> Extension<T> for ReactiveContext<(A,)> {
 	}
 }
 
-impl<A: 'static, B: 'static, T: 'static> Extension<T> for ReactiveContext<(A, B)> {
+impl<BACKEND: Backend, A: 'static, B: 'static, T: 'static> Extension<T>
+	for ReactiveContext<BACKEND, (A, B)>
+{
 	fn extension(&self) -> &T {
 		if let Ok(t) = cast!(&self.ext.0, &T) {
 			return t;
@@ -198,7 +205,9 @@ impl<A: 'static, B: 'static, T: 'static> Extension<T> for ReactiveContext<(A, B)
 	}
 }
 
-impl<A: 'static, B: 'static, C: 'static, T: 'static> Extension<T> for ReactiveContext<(A, B, C)> {
+impl<BACKEND: Backend, A: 'static, B: 'static, C: 'static, T: 'static> Extension<T>
+	for ReactiveContext<BACKEND, (A, B, C)>
+{
 	fn extension(&self) -> &T {
 		if let Ok(t) = cast!(&self.ext.0, &T) {
 			return t;
@@ -224,8 +233,8 @@ impl<A: 'static, B: 'static, C: 'static, T: 'static> Extension<T> for ReactiveCo
 	}
 }
 
-impl<A: 'static, B: 'static, C: 'static, D: 'static, T: 'static> Extension<T>
-	for ReactiveContext<(A, B, C, D)>
+impl<BACKEND: Backend, A: 'static, B: 'static, C: 'static, D: 'static, T: 'static> Extension<T>
+	for ReactiveContext<BACKEND, (A, B, C, D)>
 {
 	fn extension(&self) -> &T {
 		if let Ok(t) = cast!(&self.ext.0, &T) {
@@ -256,7 +265,7 @@ impl<A: 'static, B: 'static, C: 'static, D: 'static, T: 'static> Extension<T>
 	}
 }
 
-impl<T> AsRef<Evaluation> for ReactiveContext<T>
+impl<BACKEND: Backend, T> AsRef<Evaluation> for ReactiveContext<BACKEND, T>
 where
 	Self: Extension<WithReactions>,
 {
@@ -291,7 +300,7 @@ impl<T: Any> IntoMemo for Rc<T> {
 	}
 }
 
-impl<E> ReactiveContext<E>
+impl<B: Backend, E> ReactiveContext<B, E>
 where
 	Self: Extension<WithMemo>,
 {
@@ -328,7 +337,7 @@ where
 	}
 }
 
-impl<E> ReactiveContext<E>
+impl<B: Backend, E> ReactiveContext<B, E>
 where
 	Self: ExtensionMut<WithState>,
 	Self: Extension<WithState>,
@@ -410,7 +419,7 @@ where
 	}
 }
 
-impl<E: 'static> ReactiveContext<E> {
+impl<B: Backend + 'static, E: 'static> ReactiveContext<B, E> {
 	pub fn dispatch<T: Action>(&self, action: T) {
 		let action = Box::new(action) as Box<dyn Action>;
 		let renderable = self.renderable.clone();
@@ -423,6 +432,20 @@ impl<E: 'static> ReactiveContext<E> {
 				renderable.dispatch(action);
 			}
 		})
+	}
+
+	// FIXME: Monomorphization
+	pub fn env<T: Envelope>(&mut self) -> T::Output {
+		let mut cursor: Option<Tree<B>> = Some(self.tree.clone());
+
+		while let Some(tree) = cursor {
+			if let Some(data) = tree.data().try_get::<T>() {
+				return data;
+			}
+			cursor = tree.parent.clone();
+		}
+
+		panic!("No data of type {} the context", std::any::type_name::<T>());
 	}
 
 	pub fn wrap<F, T>(&self, func: F) -> impl Fn(T)
@@ -438,16 +461,19 @@ impl<E: 'static> ReactiveContext<E> {
 	}
 }
 
-pub struct ReactiveComponentInner<F: Fn(&mut ReactiveContext<E>) -> M, M: Markup<B>, B: Backend, E>
-{
-	context: ReactiveContext<E>,
+pub struct ReactiveComponentInner<
+	F: Fn(&mut ReactiveContext<B, E>) -> M,
+	M: Markup<B>,
+	B: Backend,
+	E,
+> {
+	context: ReactiveContext<B, E>,
 	markup: M,
 	factory: Rc<F>,
-	tree: Tree<B>,
 }
 
 pub struct ReactiveComponentFactory<
-	F: Fn(&mut ReactiveContext<E>) -> M + 'static,
+	F: Fn(&mut ReactiveContext<B, E>) -> M + 'static,
 	M: Markup<B> + 'static,
 	B: Backend + 'static,
 	E = (),
@@ -461,7 +487,7 @@ pub struct ReactiveComponentFactory<
 // TODO: Think about the allocation here
 pub fn reactive<F, M, B>(factory: F) -> impl Markup<B>
 where
-	F: Fn(&mut ReactiveContext<(WithMemo, WithReactions, WithState)>) -> M + 'static,
+	F: Fn(&mut ReactiveContext<B, (WithMemo, WithReactions, WithState)>) -> M + 'static,
 	M: Markup<B> + 'static,
 	B: Backend + 'static,
 {
@@ -473,15 +499,15 @@ where
 	}
 }
 
-pub(crate) trait Renderable<E> {
+pub(crate) trait Renderable<B: Backend, E> {
 	fn update(&self);
 	fn dispatch(&self, action: Box<dyn Action>);
-	fn context(&self) -> RefMut<ReactiveContext<E>>;
+	fn context(&self) -> RefMut<ReactiveContext<B, E>>;
 }
 
 pub struct ReactiveComponent<F, M, B, E: 'static>
 where
-	F: Fn(&mut ReactiveContext<E>) -> M + 'static,
+	F: Fn(&mut ReactiveContext<B, E>) -> M + 'static,
 	M: Markup<B> + 'static,
 	B: Backend + 'static,
 {
@@ -492,7 +518,7 @@ where
 
 impl<F, M, B, E: 'static> Drop for ReactiveComponent<F, M, B, E>
 where
-	F: Fn(&mut ReactiveContext<E>) -> M + 'static,
+	F: Fn(&mut ReactiveContext<B, E>) -> M + 'static,
 	M: Markup<B> + 'static,
 	B: Backend + 'static,
 {
@@ -504,12 +530,12 @@ where
 
 impl<F, M, B, E> ReactiveComponent<F, M, B, E>
 where
-	F: Fn(&mut ReactiveContext<E>) -> M + 'static,
+	F: Fn(&mut ReactiveContext<B, E>) -> M + 'static,
 	M: Markup<B> + 'static,
 	B: Backend + 'static,
 	E: Default + 'static,
-	ReactiveContext<E>: ExtensionMut<WithReactions>,
-	ReactiveContext<E>: ExtensionMut<WithArena>,
+	ReactiveContext<B, E>: ExtensionMut<WithReactions>,
+	ReactiveContext<B, E>: ExtensionMut<WithArena>,
 {
 	pub fn enqueue_update(&self) {
 		let component = self.this.clone();
@@ -563,7 +589,7 @@ where
 		}
 
 		if M::dynamic() {
-			next_markup.diff(&component.markup, &component.tree);
+			next_markup.diff(&component.markup, &component.context.tree);
 		}
 
 		component.markup = next_markup;
@@ -584,12 +610,12 @@ where
 
 impl<F, M, B, E> observe::Reactive for ReactiveComponent<F, M, B, E>
 where
-	F: Fn(&mut ReactiveContext<E>) -> M + 'static,
+	F: Fn(&mut ReactiveContext<B, E>) -> M + 'static,
 	M: Markup<B> + 'static,
 	B: Backend + 'static,
 	E: Default + 'static,
-	ReactiveContext<E>: ExtensionMut<WithReactions>,
-	ReactiveContext<E>: ExtensionMut<WithArena>,
+	ReactiveContext<B, E>: ExtensionMut<WithReactions>,
+	ReactiveContext<B, E>: ExtensionMut<WithArena>,
 {
 	fn update(&self) {
 		self.enqueue_update()
@@ -598,12 +624,12 @@ where
 
 impl<F, M, B, E> Derived for ReactiveComponent<F, M, B, E>
 where
-	F: Fn(&mut ReactiveContext<E>) -> M + 'static,
+	F: Fn(&mut ReactiveContext<B, E>) -> M + 'static,
 	M: Markup<B> + 'static,
 	B: Backend + 'static,
 	E: Default + 'static,
-	ReactiveContext<E>: ExtensionMut<WithReactions>,
-	ReactiveContext<E>: ExtensionMut<WithArena>,
+	ReactiveContext<B, E>: ExtensionMut<WithReactions>,
+	ReactiveContext<B, E>: ExtensionMut<WithArena>,
 {
 	fn invalidate(self: Rc<Self>, invalid: observe::Invalid) {
 		if matches!(self.state.get(), State::Valid) {
@@ -622,11 +648,11 @@ where
 
 impl<F, M, B, E> Markup<B> for ReactiveComponentFactory<F, M, B, E>
 where
-	F: Fn(&mut ReactiveContext<E>) -> M + 'static,
+	F: Fn(&mut ReactiveContext<B, E>) -> M + 'static,
 	M: Markup<B> + 'static,
 	B: Backend + 'static,
-	ReactiveContext<E>: ExtensionMut<WithReactions>,
-	ReactiveContext<E>: ExtensionMut<WithArena>,
+	ReactiveContext<B, E>: ExtensionMut<WithReactions>,
+	ReactiveContext<B, E>: ExtensionMut<WithArena>,
 	E: Default + 'static,
 {
 	fn has_own_node() -> bool {
@@ -640,10 +666,11 @@ where
 	fn render(&self, tree: &Tree<B>) {
 		let component = Rc::new_cyclic(|this: &Weak<ReactiveComponent<F, M, B, E>>| {
 			let mut context = ReactiveContext {
-				renderable: this.clone() as Weak<dyn Renderable<E>>,
+				renderable: this.clone() as Weak<dyn Renderable<B, E>>,
 				ext: E::default(),
 				effects: Default::default(),
 				derived: this.clone() as Weak<dyn Derived>,
+				tree: tree.clone(),
 			};
 
 			if let Some(with_reactions @ WithReactions { .. }) = context.try_extension_mut() {
@@ -687,62 +714,61 @@ where
 					context,
 					markup,
 					factory: self.factory.clone(),
-					tree: tree.clone(),
 				}),
 			}
 		});
 
-		tree.set_data(component);
+		tree.data_mut().set(component);
 	}
 
 	fn diff(&self, _prev: &Self, tree: &Tree<B>) {
-		let component = tree.data::<ReactiveComponent<F, M, B, E>>();
+		let component = tree.data().get::<Rc<ReactiveComponent<F, M, B, E>>>();
 
 		{
 			component.state.set(State::Invalid(Invalid::Definitely));
 			let mut component = component.inner.borrow_mut();
 			component.factory = self.factory.clone();
-			component.tree = tree.clone();
+			component.context.tree = tree.clone();
 		}
 
 		component.update();
 	}
 
 	fn drop(&self, tree: &Tree<B>, should_unmount: bool) {
-		let component = tree.data::<ReactiveComponent<F, M, B, E>>();
+		let component = tree
+			.data_mut()
+			.remove::<Rc<ReactiveComponent<F, M, B, E>>>();
 
 		let inner = component.inner.borrow_mut();
 		inner.markup.drop(tree, should_unmount);
 		std::mem::drop(inner);
 
 		// Clean itself
-		tree.remove_data::<ReactiveComponent<F, M, B, E>>();
-
 		if Self::has_own_node() {
 			tree.clear()
 		}
 	}
 }
 
-impl<M, B, F, E> Renderable<E> for ReactiveComponent<F, M, B, E>
+impl<M, B, F, E> Renderable<B, E> for ReactiveComponent<F, M, B, E>
 where
 	M: Markup<B>,
 	B: Backend,
-	F: Fn(&mut ReactiveContext<E>) -> M,
+	F: Fn(&mut ReactiveContext<B, E>) -> M,
 	E: Default + 'static,
-	ReactiveContext<E>: ExtensionMut<WithReactions>,
-	ReactiveContext<E>: ExtensionMut<WithArena>,
+	ReactiveContext<B, E>: ExtensionMut<WithReactions>,
+	ReactiveContext<B, E>: ExtensionMut<WithArena>,
 {
 	fn update(&self) {
 		ReactiveComponent::update(&self)
 	}
 
-	fn context(&self) -> RefMut<'_, ReactiveContext<E>> {
+	fn context(&self) -> RefMut<'_, ReactiveContext<B, E>> {
 		RefMut::map(self.inner.borrow_mut(), |c| &mut c.context)
 	}
 
 	fn dispatch(&self, action: Box<dyn Action>) {
-		let mut cursor = { Some(self.inner.borrow().tree.clone()) };
+		let mut cursor = { Some(self.inner.borrow().context.tree.clone()) };
 
 		let mut action = Some(action);
 		while let Some(tree) = cursor {
