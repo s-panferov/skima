@@ -28,7 +28,7 @@ where
 	}
 
 	fn render(&self, tree: &Tree<WebSys>) {
-		tracing::info!("Rendering tag {}", self.tag);
+		tracing::debug!("Rendering tag {}", self.tag);
 
 		let element = DOCUMENT.with(|d| d.create_element(self.tag).unwrap());
 		let prev = tree.set_node(element.unchecked_into());
@@ -54,7 +54,7 @@ where
 	}
 
 	fn drop(&self, tree: &Tree<WebSys>, should_unmount: bool) {
-		console_log!("Undo tag");
+		tracing::debug!("Undo tag");
 
 		if M::has_own_node() {
 			self.markup.drop(&tree.first_child(), false);

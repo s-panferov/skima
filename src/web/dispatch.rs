@@ -66,22 +66,6 @@ impl Dispatcher {
 	}
 }
 
-pub trait DispatcherExt {
-	fn dispatch<T: Action>(&self, action: T);
-}
-
-impl DispatcherExt for Tree<WebSys> {
-	fn dispatch<T: Action>(&self, action: T) {
-		if let Some(dispatcher) = self.data().try_get::<Rc<Dispatcher>>() {
-			dispatcher.dispatch(action)
-		} else {
-			if let Some(parent) = &self.parent {
-				parent.dispatch(action)
-			}
-		}
-	}
-}
-
 struct Provide<T, M> {
 	data: Rc<T>,
 	markup: M,

@@ -8,8 +8,9 @@ use std::rc::Rc;
 use by_address::ByAddress;
 use indexmap::IndexSet;
 
+use crate::action::Action;
 use crate::anydata::AnyData;
-use crate::web::dispatch::ActionHandler;
+use crate::web::dispatch::{ActionHandler, ActionResult};
 use crate::Backend;
 
 pub struct Tree<B: Backend>(Rc<TreeInner<B>>);
@@ -188,6 +189,21 @@ impl<B: Backend> Tree<B> {
 
 	pub fn data_mut(&self) -> RefMut<AnyData> {
 		self.data.borrow_mut()
+	}
+
+	pub fn dispatch(&self, action: Box<dyn Action>) {
+		let mut cursor = { Some(self.clone()) };
+
+		let mut action = Some(action);
+		while let Some(tree) = cursor {
+			for item in tree.capture.borrow().values() {
+				match item(action.take().unwrap()) {
+					ActionResult::Propagate(a) => action = Some(a),
+					ActionResult::Stop => break,
+				}
+			}
+			cursor = tree.parent.clone();
+		}
 	}
 
 	pub fn closest_node(&self) -> B::Node {

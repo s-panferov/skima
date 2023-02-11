@@ -76,8 +76,8 @@ where
 	}
 
 	fn render(&self, tree: &Tree<WebSys>) {
-		tracing::info!("Rendering event {}", self.event);
-		tracing::info!("Event tree {:?}", tree);
+		tracing::debug!("Rendering event {}", self.event);
+		tracing::debug!("Event tree {:?}", tree);
 
 		let data = Rc::<EventListenerData<C>>::new_cyclic(|this| {
 			let data = this.clone();

@@ -3,7 +3,6 @@ use std::rc::Rc;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
 
-use super::dispatch::DispatcherExt;
 use crate::action::Action;
 use crate::web::{Markup, WebSys};
 
@@ -35,16 +34,10 @@ impl Markup for History {
 						return
 					};
 
-				let history = web_sys::window().unwrap().history().unwrap();
-
-				history
-					.push_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(&href))
-					.unwrap();
-
 				event.stop_propagation();
 				event.prevent_default();
 
-				tree.dispatch(Navigate(href));
+				tree.dispatch(Box::new(Navigate(href)));
 			}
 		});
 

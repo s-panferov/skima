@@ -17,7 +17,7 @@ impl Markup for String {
 	}
 
 	fn render(&self, tree: &Tree<WebSys>) {
-		tracing::info!("Rendering text {}", self);
+		tracing::debug!("Rendering text {}", self);
 
 		let text: Node = DOCUMENT.with(|d| d.create_text_node(&self).unchecked_into());
 		let prev = tree.set_node(text);
@@ -25,7 +25,7 @@ impl Markup for String {
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<WebSys>) {
-		tracing::info!("Diffing text {}", self);
+		tracing::debug!("Diffing text {}", self);
 
 		if prev != self {
 			tree.node()
@@ -53,7 +53,7 @@ impl<'a> Markup<WebSys> for bumpalo::collections::String<'a> {
 	}
 
 	fn render(&self, tree: &Tree<WebSys>) {
-		tracing::info!("Rendering text {}", self);
+		tracing::debug!("Rendering text {}", self);
 
 		let text: Node = DOCUMENT.with(|d| d.create_text_node(&self).unchecked_into());
 		let prev = tree.set_node(text);
@@ -61,7 +61,7 @@ impl<'a> Markup<WebSys> for bumpalo::collections::String<'a> {
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<WebSys>) {
-		tracing::info!("Diffing text {}", self);
+		tracing::debug!("Diffing text {}", self);
 
 		if prev != self {
 			tree.node()
@@ -93,7 +93,7 @@ impl Markup<WebSys> for &'static str {
 	}
 
 	fn render(&self, tree: &Tree<WebSys>) {
-		tracing::info!("Rendering text {}", self);
+		tracing::debug!("Rendering text {}", self);
 
 		let text: Node = DOCUMENT.with(|d| d.create_text_node(&self).unchecked_into());
 		let prev = tree.set_node(text);
@@ -101,7 +101,7 @@ impl Markup<WebSys> for &'static str {
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<WebSys>) {
-		tracing::info!("Diffing text {}", self);
+		tracing::debug!("Diffing text {}", self);
 
 		if prev != self {
 			tree.node()
@@ -129,17 +129,17 @@ impl Markup for Cow<'static, str> {
 	}
 
 	fn render(&self, tree: &Tree<WebSys>) {
-		tracing::info!("Rendering text {}", self);
+		tracing::debug!("Rendering text {}", self);
 
 		let text: Node = DOCUMENT.with(|d| d.create_text_node(&self).unchecked_into());
 		let prev = tree.set_node(text);
 		tree.attach(prev);
 
-		tracing::info!("Rendering text {} done", self);
+		tracing::debug!("Rendering text {} done", self);
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<WebSys>) {
-		tracing::info!("Diffing text {}", self);
+		tracing::debug!("Diffing text {}", self);
 
 		if prev != self {
 			tree.node()

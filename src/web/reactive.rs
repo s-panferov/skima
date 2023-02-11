@@ -422,16 +422,9 @@ where
 impl<B: Backend + 'static, E: 'static> ReactiveContext<B, E> {
 	pub fn dispatch<T: Action>(&self, action: T) {
 		let action = Box::new(action) as Box<dyn Action>;
-		let renderable = self.renderable.clone();
-
-		// FIXME: we have a problem with the current RefCell structure
-		//        to fix this we may need to make the ReactiveContext
-		//        generic over a Backend and move the Tree<B> reference there
-		queue(move || {
-			if let Some(renderable) = renderable.upgrade() {
-				renderable.dispatch(action);
-			}
-		})
+		let tree = self.tree.clone();
+		// FIXME: do we need a queue?
+		queue(move || tree.dispatch(action))
 	}
 
 	// FIXME: Monomorphization
@@ -501,7 +494,6 @@ where
 
 pub(crate) trait Renderable<B: Backend, E> {
 	fn update(&self);
-	fn dispatch(&self, action: Box<dyn Action>);
 	fn context(&self) -> RefMut<ReactiveContext<B, E>>;
 }
 
@@ -765,20 +757,5 @@ where
 
 	fn context(&self) -> RefMut<'_, ReactiveContext<B, E>> {
 		RefMut::map(self.inner.borrow_mut(), |c| &mut c.context)
-	}
-
-	fn dispatch(&self, action: Box<dyn Action>) {
-		let mut cursor = { Some(self.inner.borrow().context.tree.clone()) };
-
-		let mut action = Some(action);
-		while let Some(tree) = cursor {
-			for item in tree.capture.borrow().values() {
-				match item(action.take().unwrap()) {
-					ActionResult::Propagate(a) => action = Some(a),
-					ActionResult::Stop => break,
-				}
-			}
-			cursor = tree.parent.clone();
-		}
 	}
 }
