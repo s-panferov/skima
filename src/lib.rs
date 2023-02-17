@@ -10,6 +10,7 @@
 use std::marker::PhantomData;
 use std::rc::Rc;
 
+use downcast_rs::Downcast;
 use tree::Tree;
 
 pub mod macros;
@@ -17,14 +18,19 @@ pub mod macros;
 pub mod action;
 pub mod anydata;
 pub mod combine;
+pub mod dynamic;
 pub mod ext;
 mod iter;
 pub mod list;
 pub mod reference;
 pub mod tree;
+mod tuple;
 pub mod web;
 
 mod docs;
+
+pub use crate::dynamic::dynamic;
+
 pub trait Markup<B: Backend = web::WebSys> {
 	fn has_own_node() -> bool {
 		return true;
@@ -39,39 +45,35 @@ pub trait Markup<B: Backend = web::WebSys> {
 	fn drop(&self, tree: &Tree<B>, should_unmount: bool);
 }
 
-pub struct Dynamic<M: Markup<B>, B: Backend> {
-	markup: M,
-	_b: PhantomData<B>,
+pub trait AnyMarkup<B: Backend = web::WebSys>: Downcast {
+	fn render(&self, tree: &Tree<B>);
+	fn diff(&self, prev: &dyn AnyMarkup<B>, tree: &Tree<B>);
+	fn drop(&self, tree: &Tree<B>, should_unmount: bool);
 }
 
-pub fn dynamic<M: Markup<B>, B: Backend>(markup: M) -> Dynamic<M, B> {
-	Dynamic {
-		markup,
-		_b: PhantomData,
-	}
-}
-
-impl<M: Markup<B>, B: Backend> Markup<B> for Dynamic<M, B> {
-	fn has_own_node() -> bool {
-		M::has_own_node()
-	}
-
-	fn dynamic() -> bool {
-		true
-	}
-
+impl<B, T> AnyMarkup<B> for T
+where
+	T: Markup<B> + 'static,
+	B: Backend + 'static,
+{
 	fn render(&self, tree: &Tree<B>) {
-		self.markup.render(tree);
+		Markup::render(self, tree)
 	}
 
-	fn diff(&self, prev: &Self, tree: &Tree<B>) {
-		self.markup.diff(&prev.markup, tree)
+	fn diff(&self, prev: &dyn AnyMarkup<B>, tree: &Tree<B>) {
+		Markup::diff(
+			self,
+			prev.downcast_ref::<T>().expect(std::any::type_name::<T>()),
+			tree,
+		)
 	}
 
 	fn drop(&self, tree: &Tree<B>, should_unmount: bool) {
-		self.markup.drop(tree, should_unmount)
+		Markup::drop(self, tree, should_unmount)
 	}
 }
+
+downcast_rs::impl_downcast!(AnyMarkup<B> where B: Backend);
 
 pub struct Context<M: Markup<B>, B: Backend> {
 	markup: M,
@@ -163,398 +165,6 @@ where
 	}
 }
 
-impl<BACKEND, A> Markup<BACKEND> for (A,)
-where
-	BACKEND: Backend,
-	A: Markup<BACKEND>,
-{
-	fn has_own_node() -> bool {
-		A::has_own_node()
-	}
-
-	fn dynamic() -> bool {
-		A::dynamic()
-	}
-
-	fn render(&self, tree: &Tree<BACKEND>) {
-		self.0.render(&tree);
-	}
-
-	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
-		self.0.diff(&prev.0, tree);
-	}
-
-	fn drop(&self, tree: &Tree<BACKEND>, should_unmount: bool) {
-		self.0.drop(&tree, should_unmount);
-	}
-}
-
-#[inline]
-fn advance<'a, B: Backend>(
-	root: &'a Tree<B>,
-	cursor: &'a mut Option<Tree<B>>,
-	has_node: bool,
-) -> &'a Tree<B> {
-	if has_node {
-		*cursor = Some(
-			cursor
-				.as_ref()
-				.map(|c| c.next())
-				.unwrap_or_else(|| root.first_child()),
-		);
-
-		cursor.as_ref().unwrap()
-	} else {
-		root
-	}
-}
-
-impl<BACKEND, A, B> Markup<BACKEND> for (A, B)
-where
-	BACKEND: Backend,
-	A: Markup<BACKEND>,
-	B: Markup<BACKEND>,
-{
-	fn has_own_node() -> bool {
-		A::has_own_node() || B::has_own_node()
-	}
-
-	fn dynamic() -> bool {
-		A::dynamic() || B::dynamic()
-	}
-
-	fn render(&self, tree: &Tree<BACKEND>) {
-		render_subtree(&self.0, &tree);
-		render_subtree(&self.1, &tree);
-	}
-
-	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
-		let mut cursor: Option<Tree<BACKEND>> = None;
-
-		{
-			let tree = advance(tree, &mut cursor, A::has_own_node());
-			if A::dynamic() {
-				self.0.diff(&prev.0, tree)
-			}
-		}
-
-		if B::dynamic() {
-			self.1
-				.diff(&prev.1, advance(tree, &mut cursor, B::has_own_node()));
-		}
-	}
-
-	fn drop(&self, tree: &Tree<BACKEND>, should_unmount: bool) {
-		{
-			let mut cursor: Option<Tree<BACKEND>> = None;
-
-			self.0.drop(
-				advance(tree, &mut cursor, A::has_own_node()),
-				should_unmount,
-			);
-
-			self.1.drop(
-				advance(tree, &mut cursor, B::has_own_node()),
-				should_unmount,
-			);
-		}
-
-		if Self::has_own_node() {
-			tree.clear()
-		}
-	}
-}
-
-impl<BACKEND, A, B, C> Markup<BACKEND> for (A, B, C)
-where
-	BACKEND: Backend,
-	A: Markup<BACKEND>,
-	B: Markup<BACKEND>,
-	C: Markup<BACKEND>,
-{
-	fn has_own_node() -> bool {
-		A::has_own_node() || B::has_own_node() || C::has_own_node()
-	}
-
-	fn dynamic() -> bool {
-		A::dynamic() || B::dynamic() || C::dynamic()
-	}
-
-	fn render(&self, tree: &Tree<BACKEND>) {
-		render_subtree(&self.0, &tree);
-		render_subtree(&self.1, &tree);
-		render_subtree(&self.2, &tree);
-	}
-
-	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
-		let mut cursor: Option<Tree<BACKEND>> = None;
-
-		{
-			let tree = advance(tree, &mut cursor, A::has_own_node());
-			if A::dynamic() {
-				self.0.diff(&prev.0, tree);
-			}
-		}
-
-		if !B::dynamic() && !C::dynamic() {
-			return;
-		}
-
-		{
-			let tree = advance(tree, &mut cursor, B::has_own_node());
-			if B::dynamic() {
-				self.1.diff(&prev.1, tree);
-			}
-		}
-
-		if !C::dynamic() {
-			return;
-		}
-
-		self.2
-			.diff(&prev.2, advance(tree, &mut cursor, C::has_own_node()));
-	}
-
-	fn drop(&self, tree: &Tree<BACKEND>, should_unmount: bool) {
-		{
-			let mut cursor: Option<Tree<BACKEND>> = None;
-
-			self.0.drop(
-				advance(tree, &mut cursor, A::has_own_node()),
-				should_unmount,
-			);
-
-			self.1.drop(
-				advance(tree, &mut cursor, B::has_own_node()),
-				should_unmount,
-			);
-
-			self.2.drop(
-				advance(tree, &mut cursor, C::has_own_node()),
-				should_unmount,
-			);
-		}
-
-		if Self::has_own_node() {
-			tree.clear()
-		}
-	}
-}
-
-impl<BACKEND, A, B, C, D> Markup<BACKEND> for (A, B, C, D)
-where
-	BACKEND: Backend,
-	A: Markup<BACKEND>,
-	B: Markup<BACKEND>,
-	C: Markup<BACKEND>,
-	D: Markup<BACKEND>,
-{
-	fn has_own_node() -> bool {
-		A::has_own_node() || B::has_own_node() || C::has_own_node() || D::has_own_node()
-	}
-
-	fn dynamic() -> bool {
-		A::dynamic() || B::dynamic() || C::dynamic() || D::dynamic()
-	}
-
-	fn render(&self, tree: &Tree<BACKEND>) {
-		render_subtree(&self.0, &tree);
-		render_subtree(&self.1, &tree);
-		render_subtree(&self.2, &tree);
-		render_subtree(&self.3, &tree);
-	}
-
-	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
-		let mut cursor: Option<Tree<BACKEND>> = None;
-
-		{
-			let tree = advance(tree, &mut cursor, A::has_own_node());
-			if A::dynamic() {
-				self.0.diff(&prev.0, tree);
-			}
-		}
-
-		if !B::dynamic() && !C::dynamic() && !D::dynamic() {
-			return;
-		}
-
-		{
-			let tree = advance(tree, &mut cursor, B::has_own_node());
-			if B::dynamic() {
-				self.1.diff(&prev.1, tree);
-			}
-		}
-
-		if !C::dynamic() && !D::dynamic() {
-			return;
-		}
-
-		{
-			let tree = advance(tree, &mut cursor, C::has_own_node());
-			if C::dynamic() {
-				self.2.diff(&prev.2, tree);
-			}
-		}
-
-		if !D::dynamic() {
-			return;
-		}
-
-		{
-			let tree = advance(tree, &mut cursor, D::has_own_node());
-			self.3.diff(&prev.3, tree);
-		}
-	}
-
-	fn drop(&self, tree: &Tree<BACKEND>, should_unmount: bool) {
-		{
-			let mut cursor: Option<Tree<BACKEND>> = None;
-
-			self.0.drop(
-				advance(tree, &mut cursor, A::has_own_node()),
-				should_unmount,
-			);
-
-			self.1.drop(
-				advance(tree, &mut cursor, B::has_own_node()),
-				should_unmount,
-			);
-
-			self.2.drop(
-				advance(tree, &mut cursor, C::has_own_node()),
-				should_unmount,
-			);
-
-			self.3.drop(
-				advance(tree, &mut cursor, D::has_own_node()),
-				should_unmount,
-			);
-		}
-
-		if Self::has_own_node() {
-			tree.clear()
-		}
-	}
-}
-
-impl<BACKEND, A, B, C, D, E> Markup<BACKEND> for (A, B, C, D, E)
-where
-	BACKEND: Backend,
-	A: Markup<BACKEND>,
-	B: Markup<BACKEND>,
-	C: Markup<BACKEND>,
-	D: Markup<BACKEND>,
-	E: Markup<BACKEND>,
-{
-	fn has_own_node() -> bool {
-		A::has_own_node()
-			|| B::has_own_node()
-			|| C::has_own_node()
-			|| D::has_own_node()
-			|| E::has_own_node()
-	}
-
-	fn dynamic() -> bool {
-		A::dynamic() || B::dynamic() || C::dynamic() || D::dynamic() || E::dynamic()
-	}
-
-	fn render(&self, tree: &Tree<BACKEND>) {
-		render_subtree(&self.0, &tree);
-		render_subtree(&self.1, &tree);
-		render_subtree(&self.2, &tree);
-		render_subtree(&self.3, &tree);
-		render_subtree(&self.4, &tree);
-	}
-
-	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
-		let mut cursor: Option<Tree<BACKEND>> = None;
-
-		{
-			let tree = advance(tree, &mut cursor, A::has_own_node());
-			if A::dynamic() {
-				self.0.diff(&prev.0, tree);
-			}
-		}
-
-		if !B::dynamic() && !C::dynamic() && !D::dynamic() && !E::dynamic() {
-			return;
-		}
-
-		{
-			let tree = advance(tree, &mut cursor, B::has_own_node());
-			if B::dynamic() {
-				self.1.diff(&prev.1, tree);
-			}
-		}
-
-		if !C::dynamic() && !D::dynamic() && !E::dynamic() {
-			return;
-		}
-
-		{
-			let tree = advance(tree, &mut cursor, C::has_own_node());
-			if C::dynamic() {
-				self.2.diff(&prev.2, tree);
-			}
-		}
-
-		if !D::dynamic() || !E::dynamic() {
-			return;
-		}
-
-		{
-			let tree = advance(tree, &mut cursor, D::has_own_node());
-			if D::dynamic() {
-				self.3.diff(&prev.3, tree);
-			}
-		}
-
-		if !E::dynamic() {
-			return;
-		}
-
-		{
-			let tree = advance(tree, &mut cursor, E::has_own_node());
-			self.4.diff(&prev.4, tree);
-		}
-	}
-
-	fn drop(&self, tree: &Tree<BACKEND>, should_unmount: bool) {
-		{
-			let mut cursor: Option<Tree<BACKEND>> = None;
-
-			self.0.drop(
-				advance(tree, &mut cursor, A::has_own_node()),
-				should_unmount,
-			);
-
-			self.1.drop(
-				advance(tree, &mut cursor, B::has_own_node()),
-				should_unmount,
-			);
-
-			self.2.drop(
-				advance(tree, &mut cursor, C::has_own_node()),
-				should_unmount,
-			);
-
-			self.3.drop(
-				advance(tree, &mut cursor, D::has_own_node()),
-				should_unmount,
-			);
-
-			self.4.drop(
-				advance(tree, &mut cursor, E::has_own_node()),
-				should_unmount,
-			);
-		}
-
-		if Self::has_own_node() {
-			tree.clear()
-		}
-	}
-}
-
 impl<BACKEND, T> Markup<BACKEND> for Box<T>
 where
 	T: Markup<BACKEND>,
@@ -618,6 +228,56 @@ where
 
 	fn dynamic() -> bool {
 		T::dynamic()
+	}
+
+	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
+		(**self).diff(&*prev, tree)
+	}
+
+	fn render(&self, tree: &Tree<BACKEND>) {
+		(**self).render(tree)
+	}
+
+	fn drop(&self, tree: &Tree<BACKEND>, should_unmount: bool) {
+		(**self).drop(tree, should_unmount)
+	}
+}
+
+impl<BACKEND> Markup<BACKEND> for Box<dyn AnyMarkup<BACKEND>>
+where
+	BACKEND: Backend + 'static,
+{
+	fn has_own_node() -> bool {
+		true
+	}
+
+	fn dynamic() -> bool {
+		true
+	}
+
+	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
+		(**self).diff(&*prev, tree)
+	}
+
+	fn render(&self, tree: &Tree<BACKEND>) {
+		(**self).render(tree)
+	}
+
+	fn drop(&self, tree: &Tree<BACKEND>, should_unmount: bool) {
+		(**self).drop(tree, should_unmount)
+	}
+}
+
+impl<BACKEND> Markup<BACKEND> for Rc<dyn AnyMarkup<BACKEND>>
+where
+	BACKEND: Backend + 'static,
+{
+	fn has_own_node() -> bool {
+		true
+	}
+
+	fn dynamic() -> bool {
+		true
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
