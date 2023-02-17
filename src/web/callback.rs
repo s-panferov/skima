@@ -207,9 +207,8 @@ where
 		F: Fn(&mut Self) -> R + 'static,
 	{
 		let type_id = TypeId::of::<F>();
-
 		let with_memo: &WithMemo = self.try_extension().unwrap();
-		if let Some(cb) = with_memo.memo.borrow_mut().get(&type_id) {
+		if let Some(cb) = with_memo.memo.borrow_mut().try_dyn_with_type_id(type_id) {
 			let callback = Rc::downcast::<Callback0<F, R, M, B, E>>(cb.clone())
 				.map_err(|_| ())
 				.unwrap();
@@ -228,7 +227,7 @@ where
 		with_memo
 			.memo
 			.borrow_mut()
-			.insert(type_id, callback.clone());
+			.set_dyn_with_type_id(type_id, callback.clone());
 
 		return Callback(callback, type_id);
 	}
@@ -257,7 +256,7 @@ where
 		let type_id = TypeId::of::<F>();
 
 		let with_memo: &WithMemo = self.try_extension().unwrap();
-		if let Some(cb) = with_memo.memo.borrow_mut().get(&type_id) {
+		if let Some(cb) = with_memo.memo.borrow_mut().try_dyn_with_type_id(type_id) {
 			let callback = Rc::downcast::<Callback1<F, R, T, M, B, E>>(cb.clone())
 				.map_err(|_| ())
 				.unwrap();
@@ -277,7 +276,7 @@ where
 		with_memo
 			.memo
 			.borrow_mut()
-			.insert(type_id, callback.clone());
+			.set_dyn_with_type_id(type_id, callback.clone());
 
 		return Callback(callback, type_id);
 	}

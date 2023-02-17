@@ -36,10 +36,31 @@ impl<T: 'static> Envelope for observe::Var<T> {
 	}
 }
 
+impl<T: std::hash::Hash + 'static> Envelope for observe::Computed<T> {
+	type Output = Self;
+	fn to_dyn(self) -> Rc<dyn Any> {
+		self.into()
+	}
+
+	fn from_dyn(rc: Rc<dyn Any>) -> Self::Output {
+		Self::try_from(rc).unwrap()
+	}
+}
+
 impl AnyData {
 	#[inline]
 	pub fn try_dyn_with_key(&self, key: u64) -> Option<Rc<dyn Any>> {
 		self.data.get(&key).map(|p| p.clone())
+	}
+
+	#[inline]
+	pub fn try_dyn<T: Any>(&self) -> Option<Rc<dyn Any>> {
+		self.try_dyn_with_key(fxhash::hash64(&TypeId::of::<T>()))
+	}
+
+	#[inline]
+	pub fn try_dyn_with_type_id(&self, tid: TypeId) -> Option<Rc<dyn Any>> {
+		self.try_dyn_with_key(fxhash::hash64(&tid))
 	}
 
 	#[inline]
@@ -65,6 +86,21 @@ impl AnyData {
 	#[inline]
 	pub fn set_with_key<T: Envelope>(&mut self, key: u64, value: T) {
 		self.data.insert(key, T::to_dyn(value));
+	}
+
+	#[inline]
+	pub fn set_dyn_with_key(&mut self, key: u64, value: Rc<dyn Any>) {
+		self.data.insert(key, value);
+	}
+
+	#[inline]
+	pub fn set_dyn_with_type_id(&mut self, tid: TypeId, value: Rc<dyn Any>) {
+		self.set_dyn_with_key(fxhash::hash64(&tid), value);
+	}
+
+	#[inline]
+	pub fn set_dyn<T: Any>(&mut self, value: Rc<dyn Any>) {
+		self.data.insert(fxhash::hash64(&TypeId::of::<T>()), value);
 	}
 
 	#[inline]

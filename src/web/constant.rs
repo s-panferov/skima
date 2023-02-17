@@ -1,7 +1,5 @@
-use std::any::{Any, TypeId};
 use std::cell::RefCell;
 use std::marker::PhantomData;
-use std::rc::Rc;
 
 use crate::anydata::Envelope;
 use crate::tree::Tree;

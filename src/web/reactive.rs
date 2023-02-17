@@ -11,10 +11,9 @@ use observe::{batch, Dependencies, Derived, Evaluation, Invalid, State, CHANGED}
 use wasm_bindgen::prelude::{wasm_bindgen, Closure};
 use wasm_bindgen::JsValue;
 
-use super::dispatch::ActionResult;
 use super::WebSys;
 use crate::action::Action;
-use crate::anydata::Envelope;
+use crate::anydata::{AnyData, Envelope};
 use crate::dont_panic;
 use crate::reference::Mutable;
 use crate::tree::Tree;
@@ -35,7 +34,7 @@ pub struct WithReactions {
 
 #[derive(Default)]
 pub struct WithMemo {
-	pub(crate) memo: RefCell<HashMap<TypeId, Rc<dyn Any>>>,
+	pub(crate) memo: RefCell<AnyData>,
 }
 
 #[derive(Default)]
@@ -304,35 +303,15 @@ impl<B: Backend, E> ReactiveContext<B, E>
 where
 	Self: Extension<WithMemo>,
 {
-	pub fn with_memo_rc<T: Any>(&mut self, func: impl FnOnce() -> Rc<T>) -> Rc<T> {
-		let tid = TypeId::of::<T>();
+	pub fn with_memo<T: Envelope>(&mut self, func: impl FnOnce() -> T) -> T::Output {
 		let with_memo: &WithMemo = self.try_extension().unwrap();
 		let mut memo = with_memo.memo.borrow_mut();
-		if let Some(item) = memo.get(&tid) {
-			Rc::downcast(item.clone()).map_err(|_| ()).unwrap()
+		if let Some(item) = memo.try_get::<T>() {
+			item
 		} else {
 			let t = func();
-			memo.insert(tid, t.clone());
-			t
-		}
-	}
-
-	pub fn with_memo<T: Clone + Into<Rc<dyn Any>> + 'static>(
-		&mut self,
-		func: impl FnOnce() -> T,
-	) -> T
-	where
-		Rc<dyn Any>: TryInto<T>,
-	{
-		let tid = TypeId::of::<T>();
-		let with_memo: &WithMemo = self.try_extension().unwrap();
-		let mut memo = with_memo.memo.borrow_mut();
-		if let Some(item) = memo.get(&tid) {
-			Rc::try_into(item.clone()).map_err(|_| ()).unwrap()
-		} else {
-			let t = func();
-			memo.insert(tid, t.clone().into());
-			t
+			memo.set::<T>(t);
+			memo.get::<T>()
 		}
 	}
 }
