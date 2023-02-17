@@ -429,16 +429,22 @@ impl<B: Backend + 'static, E: 'static> ReactiveContext<B, E> {
 
 	// FIXME: Monomorphization
 	pub fn env<T: Envelope>(&mut self) -> T::Output {
+		self.try_env::<T>().unwrap_or_else(|| {
+			panic!("No data of type {} the context", std::any::type_name::<T>());
+		})
+	}
+
+	pub fn try_env<T: Envelope>(&mut self) -> Option<T::Output> {
 		let mut cursor: Option<Tree<B>> = Some(self.tree.clone());
 
 		while let Some(tree) = cursor {
 			if let Some(data) = tree.data().try_get::<T>() {
-				return data;
+				return Some(data);
 			}
 			cursor = tree.parent.clone();
 		}
 
-		panic!("No data of type {} the context", std::any::type_name::<T>());
+		None
 	}
 
 	pub fn wrap<F, T>(&self, func: F) -> impl Fn(T)
