@@ -199,7 +199,7 @@ impl<B: Backend> Tree<B> {
 			for item in tree.capture.borrow().values() {
 				match item(action.take().unwrap()) {
 					ActionResult::Propagate(a) => action = Some(a),
-					ActionResult::Stop => break,
+					ActionResult::Stop => return,
 				}
 			}
 			cursor = tree.parent.clone();
