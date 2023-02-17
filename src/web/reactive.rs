@@ -633,6 +633,10 @@ where
 		if matches!(self.state.get(), State::Valid) {
 			self.state.set(State::Invalid(invalid));
 			unsafe {
+				if !observe::in_batch() {
+					panic!("Reactive component was invalidated outside of a `batch` call");
+				}
+
 				// FIXME: Components may be added in a wrong order, resulting
 				//        in unnecessary computations (for example, if parent changes
 				//        the view completely, there is no need to recompute children.
