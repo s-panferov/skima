@@ -1,4 +1,4 @@
-use std::any::{Any, TypeId};
+use std::any::TypeId;
 use std::hash::Hash;
 use std::marker::PhantomData;
 use std::ops::Deref;

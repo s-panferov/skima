@@ -303,15 +303,16 @@ impl<B: Backend, E> ReactiveContext<B, E>
 where
 	Self: Extension<WithMemo>,
 {
-	pub fn with_memo<T: Envelope>(&mut self, func: impl FnOnce() -> T) -> T::Output {
+	pub fn with_memo<T: Envelope, F: FnOnce() -> T + 'static>(&mut self, func: F) -> T::Output {
 		let with_memo: &WithMemo = self.try_extension().unwrap();
 		let mut memo = with_memo.memo.borrow_mut();
-		if let Some(item) = memo.try_get::<T>() {
+		let key = fxhash::hash64(&(TypeId::of::<T>(), TypeId::of::<F>()));
+		if let Some(item) = memo.try_with_key::<T>(key) {
 			item
 		} else {
 			let t = func();
-			memo.set::<T>(t);
-			memo.get::<T>()
+			memo.set_with_key::<T>(key, t);
+			memo.get_with_key::<T>(key)
 		}
 	}
 }
