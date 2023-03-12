@@ -6,6 +6,7 @@
 #![feature(unboxed_closures)]
 #![feature(fn_traits)]
 #![feature(tuple_trait)]
+#![feature(coerce_unsized, unsize)]
 
 use std::marker::PhantomData;
 use std::rc::Rc;

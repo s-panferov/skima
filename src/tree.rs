@@ -1,4 +1,3 @@
-use std::any::{type_name, Any, TypeId};
 use std::cell::{Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -37,23 +36,23 @@ impl<B: Backend> Deref for Tree<B> {
 }
 
 pub struct TreeInner<B: Backend> {
-	pub level: usize,
+	pub(crate) level: usize,
 
-	pub parent: Option<Tree<B>>,
-	pub prev: RefCell<Option<Tree<B>>>,
-	pub next: RefCell<Option<Tree<B>>>,
+	pub(crate) parent: Option<Tree<B>>,
+	pub(crate) prev: RefCell<Option<Tree<B>>>,
+	pub(crate) next: RefCell<Option<Tree<B>>>,
 
 	// TODO: Optimize for a single child?
-	pub children: RefCell<IndexSet<ByAddress<Tree<B>>>>,
+	pub(crate) children: RefCell<IndexSet<ByAddress<Tree<B>>>>,
 
 	// HTML node
-	pub node: RefCell<Option<B::Node>>,
+	pub(crate) node: RefCell<Option<B::Node>>,
 
 	// Capture state
 	pub(crate) capture: RefCell<HashMap<u64, ActionHandler>>,
 
 	// Mutable element state
-	pub data: RefCell<AnyData>,
+	pub(crate) data: RefCell<AnyData>,
 }
 
 impl<B: Backend> Debug for Tree<B>

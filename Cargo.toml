@@ -9,6 +9,13 @@ keywords = ["web", "webasm", "javascript"]
 categories = ["gui", "wasm", "web-programming"]
 license = "MIT"
 
+[workspace]
+
+members = [
+    ".",
+    "examples/todomvc"
+]
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 
@@ -21,7 +28,7 @@ castaway= "0.2.2"
 fxhash= "0.2.1"
 downcast-rs = "1.2.0"
 no-panic= "0.1.17"
-observe="1.0.0"
+observe="1.1.0"
 
 wasm-bindgen = "0.2.83"
 js-sys = "0.3.60"

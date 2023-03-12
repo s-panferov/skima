@@ -98,4 +98,8 @@ pub mod html {
 	define_tag!(h1, 10);
 	define_tag!(h2, 11);
 	define_tag!(h3, 12);
+	define_tag!(header, 13);
+	define_tag!(section, 14);
+	define_tag!(ul, 15);
+	define_tag!(li, 16);
 }

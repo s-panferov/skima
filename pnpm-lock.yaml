@@ -1,0 +1,21 @@
+lockfileVersion: 5.4
+
+importers:
+
+  examples/todomvc:
+    specifiers:
+      todomvc-app-css: ^2.4.2
+      todomvc-common: 1.0.5
+    dependencies:
+      todomvc-app-css: 2.4.2
+      todomvc-common: 1.0.5
+
+packages:
+
+  /todomvc-app-css/2.4.2:
+    resolution: {integrity: sha512-ViAkQ7ed89rmhFIGRsT36njN+97z8+s3XsJnB8E2IKOq+/SLD/6PtSvmTtiwUcVk39qPcjAc/OyeDys4LoJUVg==}
+    dev: false
+
+  /todomvc-common/1.0.5:
+    resolution: {integrity: sha512-D8kEJmxVMQIWwztEdH+WeiAfXRbbSCpgXq4NkYi+gduJ2tr8CNq7sYLfJvjpQ10KD9QxJwig57rvMbV2QAESwQ==}
+    dev: false

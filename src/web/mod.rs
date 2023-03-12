@@ -9,7 +9,6 @@ use reactive::reactive;
 use self::helpers::cursor::Cursor;
 use crate::{console_log, Backend, Markup};
 
-pub mod api;
 pub mod attr;
 pub mod bump;
 pub mod callback;
@@ -25,6 +24,7 @@ pub mod routing;
 pub mod style;
 pub mod tag;
 pub mod text;
+pub mod tree;
 
 pub mod prelude {
 	pub use crate::reference::reference;

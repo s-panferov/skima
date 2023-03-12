@@ -1,0 +1,26 @@
+[package]
+authors = ["Stanislav Panferov <stanislav@panferov.dev>"]
+edition = "2021"
+name = "skima-todomvc"
+version = "0.1.0"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen="*"
+skima={path="../.."}
+
+web-sys={ version = "0.3.60", features = [
+  "Window", 
+  "console", 
+  "Event", 
+  "Node", 
+  "Text", 
+  "Element", 
+  "History",
+  "HtmlElement", 
+  "HtmlInputElement",
+  "KeyboardEvent",
+  "Document", 
+] }

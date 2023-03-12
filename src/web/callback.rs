@@ -1,6 +1,6 @@
 use std::any::TypeId;
 use std::hash::Hash;
-use std::marker::PhantomData;
+use std::marker::{PhantomData, Unsize};
 use std::ops::Deref;
 use std::rc::{Rc, Weak};
 
@@ -79,8 +79,15 @@ impl<T: 'static> Callback<T> {
 		Callback(Rc::new(func), TypeId::of::<T>())
 	}
 
-	pub fn to_dyn<U: ?Sized>(self, func: impl FnOnce(Rc<T>) -> Rc<U>) -> Callback<U> {
-		Callback(func(self.0), self.1)
+	pub fn wrap(func: Rc<T>) -> Self {
+		Callback(func, TypeId::of::<T>())
+	}
+
+	pub fn to_dyn<U: ?Sized>(self) -> Callback<U>
+	where
+		T: Unsize<U>,
+	{
+		Callback(self.0 as Rc<U>, self.1)
 	}
 }
 

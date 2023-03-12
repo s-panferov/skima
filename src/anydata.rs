@@ -143,16 +143,3 @@ where
 		self.0.into()
 	}
 }
-
-#[cfg(test)]
-mod tests {
-	use observe::Var;
-
-	use super::*;
-
-	#[test]
-	fn test() {
-		let data = AnyData::default();
-		let var = data.get::<Rc<_>>();
-	}
-}
