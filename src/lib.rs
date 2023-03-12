@@ -34,11 +34,11 @@ pub use crate::dynamic::dynamic;
 
 pub trait Markup<B: Backend = web::WebSys> {
 	fn has_own_node() -> bool {
-		return true;
+		true
 	}
 
 	fn dynamic() -> bool {
-		return true;
+		true
 	}
 
 	fn render(&self, tree: &Tree<B>);
@@ -64,7 +64,7 @@ where
 	fn diff(&self, prev: &dyn AnyMarkup<B>, tree: &Tree<B>) {
 		Markup::diff(
 			self,
-			prev.downcast_ref::<T>().expect(std::any::type_name::<T>()),
+			prev.downcast_ref::<T>().unwrap_or_else(|| { panic!("{}", std::any::type_name::<T>()) }),
 			tree,
 		)
 	}
@@ -84,7 +84,7 @@ pub struct Context<M: Markup<B>, B: Backend> {
 #[inline]
 pub fn render_subtree<M: Markup<B>, B: Backend>(markup: &M, parent: &Tree<B>) {
 	if M::has_own_node() {
-		let subtree = Tree::new(&parent);
+		let subtree = Tree::new(parent);
 		markup.render(&subtree)
 	} else {
 		markup.render(parent)
@@ -232,7 +232,7 @@ where
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
-		(**self).diff(&*prev, tree)
+		(**self).diff(prev, tree)
 	}
 
 	fn render(&self, tree: &Tree<BACKEND>) {
@@ -257,7 +257,7 @@ where
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
-		(**self).diff(&*prev, tree)
+		(**self).diff(prev, tree)
 	}
 
 	fn render(&self, tree: &Tree<BACKEND>) {
@@ -282,7 +282,7 @@ where
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
-		(**self).diff(&*prev, tree)
+		(**self).diff(prev, tree)
 	}
 
 	fn render(&self, tree: &Tree<BACKEND>) {

@@ -151,12 +151,10 @@ impl<B: Backend> Tree<B> {
 			}
 			tree.next.replace(Some(child.0.clone()));
 			child.prev.replace(Some(tree.clone()));
-		} else {
-			if let Some(prev) = self.children.borrow().last() {
-				prev.next.replace(Some(tree.clone()));
-				tree.prev.replace(Some(prev.0.clone()));
-			}
-		}
+		} else if let Some(prev) = self.children.borrow().last() {
+  				prev.next.replace(Some(tree.clone()));
+  				tree.prev.replace(Some(prev.0.clone()));
+  			}
 
 		let (i, _) = self
 			.children
@@ -207,7 +205,7 @@ impl<B: Backend> Tree<B> {
 
 	pub fn closest_node(&self) -> B::Node {
 		if let Some(node) = self.node.borrow().as_ref() {
-			return node.clone();
+			node.clone()
 		} else {
 			self.parent.as_ref().unwrap().closest_node()
 		}
@@ -296,12 +294,10 @@ impl<B: Backend> Tree<B> {
 		let node = self.node.borrow();
 		let node = node.as_ref().unwrap();
 		if let Some(prev) = prev {
-			B::replace(&node, &prev)
-		} else {
-			if let Some(cursor) = self.find_pacement() {
-				B::insert(cursor, &node);
-			}
-		}
+			B::replace(node, &prev)
+		} else if let Some(cursor) = self.find_pacement() {
+  				B::insert(cursor, node);
+  			}
 	}
 
 	pub fn fist_node(&self) -> Option<B::Node> {
@@ -311,7 +307,7 @@ impl<B: Backend> Tree<B> {
 
 		for child in self.children.borrow().iter() {
 			if let Some(node) = child.fist_node() {
-				return Some(node.clone());
+				return Some(node);
 			}
 		}
 
@@ -325,7 +321,7 @@ impl<B: Backend> Tree<B> {
 
 		for child in self.children.borrow().iter().rev() {
 			if let Some(node) = child.last_node() {
-				return Some(node.clone());
+				return Some(node);
 			}
 		}
 
@@ -377,17 +373,17 @@ impl Backend for Noop {
 	type Event = ();
 	type Node = String;
 
-	fn cursor_after(node: &Self::Node) -> Self::Cursor {
-		()
+	fn cursor_after(_node: &Self::Node) -> Self::Cursor {
+		
 	}
 
-	fn cursor_beginning_of(node: &Self::Node) -> Self::Cursor {
-		()
+	fn cursor_beginning_of(_node: &Self::Node) -> Self::Cursor {
+		
 	}
 
-	fn insert(cursor: Self::Cursor, node: &Self::Node) {}
+	fn insert(_cursor: Self::Cursor, _node: &Self::Node) {}
 
-	fn replace(node: &Self::Node, prev: &Self::Node) {}
+	fn replace(_node: &Self::Node, _prev: &Self::Node) {}
 }
 
 #[cfg(test)]

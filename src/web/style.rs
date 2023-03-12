@@ -7,7 +7,7 @@ use crate::Markup;
 pub struct Property<S1: StringLike, S2: StringLike>(S1, S2);
 
 pub fn property<S1: StringLike, S2: StringLike>(prop: S1, value: S2) -> Property<S1, S2> {
-	Property(prop.into(), value.into())
+	Property(prop, value)
 }
 
 impl<S1: StringLike, S2: StringLike> Markup for Property<S1, S2> {
@@ -23,7 +23,7 @@ impl<S1: StringLike, S2: StringLike> Markup for Property<S1, S2> {
 		tree.closest_node()
 			.unchecked_ref::<HtmlElement>()
 			.style()
-			.set_property(&self.0.as_ref(), &self.1.as_ref())
+			.set_property(self.0.as_ref(), self.1.as_ref())
 			.unwrap();
 	}
 
@@ -32,7 +32,7 @@ impl<S1: StringLike, S2: StringLike> Markup for Property<S1, S2> {
 			tree.closest_node()
 				.unchecked_ref::<HtmlElement>()
 				.style()
-				.set_property(&self.0.as_ref(), &self.1.as_ref())
+				.set_property(self.0.as_ref(), self.1.as_ref())
 				.unwrap();
 		}
 	}
@@ -42,7 +42,7 @@ impl<S1: StringLike, S2: StringLike> Markup for Property<S1, S2> {
 			tree.closest_node()
 				.unchecked_ref::<HtmlElement>()
 				.style()
-				.remove_property(&self.0.as_ref())
+				.remove_property(self.0.as_ref())
 				.unwrap();
 		}
 	}

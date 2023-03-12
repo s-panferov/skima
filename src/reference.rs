@@ -44,13 +44,13 @@ impl<T> Mutable<T> {
 		}
 	}
 
-	pub fn current<'a>(&'a self) -> std::cell::Ref<'a, T> {
+	pub fn current(&self) -> std::cell::Ref<'_, T> {
 		self.inner.borrow()
 	}
 }
 
 impl<T> Mutable<Option<T>> {
-	pub fn unwrap<'a>(&'a self) -> std::cell::Ref<'a, T> {
+	pub fn unwrap(&self) -> std::cell::Ref<'_, T> {
 		std::cell::Ref::map(self.inner.borrow(), |r| r.as_ref().unwrap())
 	}
 }
@@ -66,7 +66,7 @@ impl<B: Backend, F: Fn(Option<B::Node>)> Markup<B> for Refr<B, F> {
 		(self.func)(Some(tree));
 	}
 	fn diff(&self, _prev: &Self, _tree: &crate::tree::Tree<B>) {}
-	fn drop(&self, tree: &crate::tree::Tree<B>, should_unmount: bool) {
+	fn drop(&self, _tree: &crate::tree::Tree<B>, _should_unmount: bool) {
 		(self.func)(None);
 	}
 }

@@ -37,7 +37,7 @@ pub const fn classlist<S: StringLike>(classname: S) -> ClassList<S> {
 }
 
 pub fn attr<S1: StringLike, S2: StringLike>(attr: S1, value: S2) -> Attr<S1, S2> {
-	Attr(attr.into(), value.into())
+	Attr(attr, value)
 }
 
 impl<S: StringLike> Markup for ClassList<S> {
@@ -61,8 +61,8 @@ impl<S: StringLike> Markup for ClassList<S> {
 		if prev.0.as_ref() != self.0.as_ref() {
 			let element = tree.closest_node();
 			let element = element.unchecked_ref::<HtmlElement>();
-			element.class_list().remove_1(&prev.0.as_ref()).unwrap();
-			element.class_list().add_1(&self.0.as_ref()).unwrap();
+			element.class_list().remove_1(prev.0.as_ref()).unwrap();
+			element.class_list().add_1(self.0.as_ref()).unwrap();
 		}
 	}
 
@@ -71,7 +71,7 @@ impl<S: StringLike> Markup for ClassList<S> {
 			tree.closest_node()
 				.unchecked_ref::<HtmlElement>()
 				.class_list()
-				.remove_1(&self.0.as_ref())
+				.remove_1(self.0.as_ref())
 				.unwrap();
 		}
 	}
@@ -89,7 +89,7 @@ impl<S1: StringLike, S2: StringLike> Markup for Attr<S1, S2> {
 	fn render(&self, tree: &Tree<WebSys>) {
 		tree.closest_node()
 			.unchecked_ref::<HtmlElement>()
-			.set_attribute(&self.0.as_ref(), &self.1.as_ref())
+			.set_attribute(self.0.as_ref(), self.1.as_ref())
 			.unwrap();
 	}
 
@@ -97,7 +97,7 @@ impl<S1: StringLike, S2: StringLike> Markup for Attr<S1, S2> {
 		if prev.1.as_ref() != self.1.as_ref() {
 			tree.closest_node()
 				.unchecked_ref::<HtmlElement>()
-				.set_attribute(&self.0.as_ref(), &self.1.as_ref())
+				.set_attribute(self.0.as_ref(), self.1.as_ref())
 				.unwrap();
 		}
 	}
@@ -106,7 +106,7 @@ impl<S1: StringLike, S2: StringLike> Markup for Attr<S1, S2> {
 		if should_unmount {
 			tree.closest_node()
 				.unchecked_ref::<HtmlElement>()
-				.remove_attribute(&self.0.as_ref())
+				.remove_attribute(self.0.as_ref())
 				.unwrap();
 		}
 	}

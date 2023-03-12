@@ -35,7 +35,7 @@ impl<E> Context<E> {
 	where
 		Self: AsRef<Arena>,
 	{
-		let a: &Arena = self.as_ref();
+		let _a: &Arena = self.as_ref();
 	}
 }
 

@@ -66,8 +66,8 @@ where
 
 		let mut rendered = data.rendered.borrow_mut();
 		for item in self.data.iter() {
-			let markup = (self.func)(&item.1, &item.0);
-			let tree = Tree::new(&parent);
+			let markup = (self.func)(item.1, item.0);
+			let tree = Tree::new(parent);
 			markup.render(&tree);
 			rendered.insert(item.0.clone(), markup);
 		}
@@ -97,7 +97,7 @@ where
 			let next_item = next_iter.next().unwrap();
 			let tree = tree.child_at(prev_range.start);
 
-			let prev_m = rendered.get(&prev_item.0).unwrap();
+			let prev_m = rendered.get(prev_item.0).unwrap();
 			let next_m = (self.func)(next_item.1, next_item.0);
 
 			next_m.diff(prev_m, &tree);
@@ -119,7 +119,7 @@ where
 
 			let tree = tree.child_at(prev_range.start);
 
-			let prev_m = rendered.get(&prev_item.0).unwrap();
+			let prev_m = rendered.get(prev_item.0).unwrap();
 			let next_m = (self.func)(next_item.1, next_item.0);
 
 			next_m.diff(prev_m, &tree);
@@ -145,7 +145,7 @@ where
 			for prev_item in prev_iter {
 				let subtree = tree.child_at(prev_range.start);
 
-				let prev_m = rendered.remove(&prev_item.0).unwrap();
+				let prev_m = rendered.remove(prev_item.0).unwrap();
 
 				prev_m.drop(&subtree, true);
 				subtree.disconnect(true);
@@ -161,7 +161,7 @@ where
 			match next_iter.next() {
 				None => {
 					let subtree = tree.child_at(prev_range.start);
-					let prev_m = rendered.remove(&prev_item.0).unwrap();
+					let prev_m = rendered.remove(prev_item.0).unwrap();
 
 					prev_m.drop(&subtree, true);
 					subtree.disconnect(true);
@@ -172,7 +172,7 @@ where
 				Some(next_item) => {
 					let tree = tree.child_at(prev_range.start);
 
-					let prev_m = rendered.get(&prev_item.0).unwrap();
+					let prev_m = rendered.get(prev_item.0).unwrap();
 					let next_m = (self.func)(next_item.1, next_item.0);
 
 					next_m.diff(prev_m, &tree);

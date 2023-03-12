@@ -15,7 +15,7 @@ where
 	}
 
 	fn render(&self, tree: &Tree<BACKEND>) {
-		self.0.render(&tree);
+		self.0.render(tree);
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
@@ -23,7 +23,7 @@ where
 	}
 
 	fn drop(&self, tree: &Tree<BACKEND>, should_unmount: bool) {
-		self.0.drop(&tree, should_unmount);
+		self.0.drop(tree, should_unmount);
 	}
 }
 
@@ -62,8 +62,8 @@ where
 	}
 
 	fn render(&self, tree: &Tree<BACKEND>) {
-		render_subtree(&self.0, &tree);
-		render_subtree(&self.1, &tree);
+		render_subtree(&self.0, tree);
+		render_subtree(&self.1, tree);
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
@@ -119,9 +119,9 @@ where
 	}
 
 	fn render(&self, tree: &Tree<BACKEND>) {
-		render_subtree(&self.0, &tree);
-		render_subtree(&self.1, &tree);
-		render_subtree(&self.2, &tree);
+		render_subtree(&self.0, tree);
+		render_subtree(&self.1, tree);
+		render_subtree(&self.2, tree);
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
@@ -196,10 +196,10 @@ where
 	}
 
 	fn render(&self, tree: &Tree<BACKEND>) {
-		render_subtree(&self.0, &tree);
-		render_subtree(&self.1, &tree);
-		render_subtree(&self.2, &tree);
-		render_subtree(&self.3, &tree);
+		render_subtree(&self.0, tree);
+		render_subtree(&self.1, tree);
+		render_subtree(&self.2, tree);
+		render_subtree(&self.3, tree);
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
@@ -297,11 +297,11 @@ where
 	}
 
 	fn render(&self, tree: &Tree<BACKEND>) {
-		render_subtree(&self.0, &tree);
-		render_subtree(&self.1, &tree);
-		render_subtree(&self.2, &tree);
-		render_subtree(&self.3, &tree);
-		render_subtree(&self.4, &tree);
+		render_subtree(&self.0, tree);
+		render_subtree(&self.1, tree);
+		render_subtree(&self.2, tree);
+		render_subtree(&self.3, tree);
+		render_subtree(&self.4, tree);
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {

@@ -31,7 +31,7 @@ impl Envelope for Dispatcher {
 
 	fn from_dyn(rc: Rc<dyn Any>) -> Self::Output {
 		let boxed = Rc::downcast::<Dispatcher>(rc).map_err(|_| ()).unwrap();
-		(&*boxed).clone()
+		(*boxed).clone()
 	}
 
 	fn to_dyn(self) -> Rc<dyn Any> {
@@ -82,7 +82,7 @@ impl<T: Any + 'static, M: Markup<WebSys>> Markup<WebSys> for Provide<T, M> {
 	}
 
 	fn diff(&self, prev: &Self, tree: &crate::tree::Tree<WebSys>) {
-		self.markup.diff(&prev.markup, &tree);
+		self.markup.diff(&prev.markup, tree);
 	}
 
 	fn drop(&self, tree: &crate::tree::Tree<WebSys>, should_unmount: bool) {

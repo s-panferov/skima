@@ -22,15 +22,15 @@ where
 	M: Markup<B>,
 	B: Backend,
 {
-	fn render(&self, tree: &Tree<B>) {
+	fn render(&self, _tree: &Tree<B>) {
 		todo!()
 	}
 
-	fn diff(&self, prev: &Self, tree: &Tree<B>) {
+	fn diff(&self, _prev: &Self, _tree: &Tree<B>) {
 		todo!()
 	}
 
-	fn drop(&self, tree: &Tree<B>, should_unmount: bool) {
+	fn drop(&self, _tree: &Tree<B>, _should_unmount: bool) {
 		todo!()
 	}
 }
@@ -72,15 +72,15 @@ where
 	M: Markup<B>,
 	B: Backend,
 {
-	fn render(&self, tree: &Tree<B>) {
+	fn render(&self, _tree: &Tree<B>) {
 		todo!()
 	}
 
-	fn diff(&self, prev: &Self, tree: &Tree<B>) {
+	fn diff(&self, _prev: &Self, _tree: &Tree<B>) {
 		todo!()
 	}
 
-	fn drop(&self, tree: &Tree<B>, should_unmount: bool) {
+	fn drop(&self, _tree: &Tree<B>, _should_unmount: bool) {
 		todo!()
 	}
 }
@@ -108,6 +108,6 @@ mod tests {
 
 	#[test]
 	fn test() {
-		let m = bump(|b| div(bumpalo::format!(in b, "String {}", 10).into_bump_str()));
+		let _m = bump(|b| div(bumpalo::format!(in b, "String {}", 10).into_bump_str()));
 	}
 }

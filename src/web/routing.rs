@@ -42,7 +42,7 @@ impl Markup for History {
 		});
 
 		let node = tree.closest_node();
-		node.add_event_listener_with_callback("click", &callback.as_ref().unchecked_ref())
+		node.add_event_listener_with_callback("click", callback.as_ref().unchecked_ref())
 			.unwrap();
 
 		tree.data_mut().set(Rc::new(HistoryEvent(callback)));
@@ -55,7 +55,7 @@ impl Markup for History {
 	fn drop(&self, tree: &crate::tree::Tree<WebSys>, _should_unmount: bool) {
 		let event = tree.data_mut().remove::<Rc<HistoryEvent>>();
 		tree.closest_node()
-			.remove_event_listener_with_callback("click", &event.0.as_ref().unchecked_ref())
+			.remove_event_listener_with_callback("click", event.0.as_ref().unchecked_ref())
 			.unwrap();
 	}
 }

@@ -3,7 +3,7 @@ use skima::web::event::on;
 use skima::web::html::div;
 use skima::web::reactive::reactive;
 use skima::web::root::Root;
-use skima::web::WebSys;
+
 use skima::Markup;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_test::wasm_bindgen_test;
@@ -15,7 +15,7 @@ fn component() -> impl Markup {
 		cx.with(Var::new(true));
 
 		let var = cx.get::<Var<bool>>();
-		let text = if *var.get(cx) == true {
+		let text = if *var.get(cx) {
 			"True"
 		} else {
 			"False"

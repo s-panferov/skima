@@ -6,7 +6,7 @@ use web_sys::HtmlElement;
 use crate::tree::Tree;
 use crate::web::helpers::dom::DOCUMENT;
 use crate::web::{Backend, Markup, WebSys};
-use crate::{console_log, render_subtree, subtree};
+use crate::{render_subtree, subtree};
 
 #[derive(Clone)]
 pub struct Tag<M: Markup<B>, B: Backend, const N: usize> {
@@ -32,7 +32,7 @@ where
 
 		let element = DOCUMENT.with(|d| d.create_element(self.tag).unwrap());
 		let prev = tree.set_node(element.unchecked_into());
-		render_subtree(&self.markup, &tree);
+		render_subtree(&self.markup, tree);
 		tree.attach(prev);
 	}
 
@@ -44,13 +44,11 @@ where
 			let prev = tree.set_node(element.into());
 			tree.clear();
 
-			render_subtree(&self.markup, &tree);
+			render_subtree(&self.markup, tree);
 			tree.attach(prev)
-		} else {
-			if M::dynamic() {
-				self.markup.diff(&prev.markup, &subtree::<M, _>(tree));
-			}
-		}
+		} else if M::dynamic() {
+  				self.markup.diff(&prev.markup, &subtree::<M, _>(tree));
+  			}
 	}
 
 	fn drop(&self, tree: &Tree<WebSys>, should_unmount: bool) {

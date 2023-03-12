@@ -70,7 +70,7 @@ impl<T: ?Sized> Hash for Callback<T> {
 
 impl<T: ?Sized> Clone for Callback<T> {
 	fn clone(&self) -> Self {
-		Callback(self.0.clone(), self.1.clone())
+		Callback(self.0.clone(), self.1)
 	}
 }
 
@@ -236,7 +236,7 @@ where
 			.borrow_mut()
 			.set_dyn_with_type_id(type_id, callback.clone());
 
-		return Callback(callback, type_id);
+		Callback(callback, type_id)
 	}
 
 	pub fn callback_0<F>(&self, func: F) -> Callback<dyn Fn()>
@@ -285,7 +285,7 @@ where
 			.borrow_mut()
 			.set_dyn_with_type_id(type_id, callback.clone());
 
-		return Callback(callback, type_id);
+		Callback(callback, type_id)
 	}
 
 	pub fn callback_1<F, R, T: 'static>(&self, func: F) -> Callback<dyn Fn(T) -> R>

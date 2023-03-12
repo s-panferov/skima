@@ -74,7 +74,7 @@ impl<BACKEND: Backend, A: 'static, T: 'static> ExtensionMut<T> for ReactiveConte
 			return Some(t);
 		}
 
-		return None;
+		None
 	}
 }
 
@@ -98,7 +98,7 @@ impl<BACKEND: Backend, A: 'static, B: 'static, T: 'static> ExtensionMut<T>
 			return Some(t);
 		}
 
-		return None;
+		None
 	}
 }
 
@@ -126,7 +126,7 @@ impl<BACKEND: Backend, A: 'static, B: 'static, C: 'static, T: 'static> Extension
 			return Some(t);
 		}
 
-		return None;
+		None
 	}
 }
 
@@ -158,7 +158,7 @@ impl<BACKEND: Backend, A: 'static, B: 'static, C: 'static, D: 'static, T: 'stati
 			return Some(t);
 		}
 
-		return None;
+		None
 	}
 }
 
@@ -176,7 +176,7 @@ impl<BACKEND: Backend, A: 'static, T: 'static> Extension<T> for ReactiveContext<
 			return Some(t);
 		}
 
-		return None;
+		None
 	}
 }
 
@@ -200,7 +200,7 @@ impl<BACKEND: Backend, A: 'static, B: 'static, T: 'static> Extension<T>
 			return Some(t);
 		}
 
-		return None;
+		None
 	}
 }
 
@@ -228,7 +228,7 @@ impl<BACKEND: Backend, A: 'static, B: 'static, C: 'static, T: 'static> Extension
 			return Some(t);
 		}
 
-		return None;
+		None
 	}
 }
 
@@ -260,7 +260,7 @@ impl<BACKEND: Backend, A: 'static, B: 'static, C: 'static, D: 'static, T: 'stati
 			return Some(t);
 		}
 
-		return None;
+		None
 	}
 }
 
@@ -281,7 +281,7 @@ extern "C" {
 }
 
 pub fn queue<F: FnOnce() + 'static>(func: F) {
-	queue_microtask(&Closure::once_into_js(move || func()));
+	queue_microtask(&Closure::once_into_js(func));
 }
 
 pub trait IntoMemo {
@@ -328,10 +328,8 @@ where
 			.state
 			.get(&TypeId::of::<T>())
 			// FIXME: remove format
-			.expect(&format!(
-				"Item of type {} is now available",
-				type_name::<T>()
-			))
+			.unwrap_or_else(|| panic!("Item of type {} is now available",
+				type_name::<T>()))
 			.downcast_ref::<T>()
 			.unwrap()
 	}
@@ -353,18 +351,14 @@ where
 		let state: &mut WithState = self.try_extension_mut().unwrap();
 
 		let tid = TypeId::of::<T>();
-		if !state.state.contains_key(&tid) {
-			state.state.insert(tid, Box::new(value) as Box<dyn Any>);
-		}
+		state.state.entry(tid).or_insert_with(|| Box::new(value) as Box<dyn Any>);
 	}
 
 	pub fn with_fn<T: Any>(&mut self, func: impl FnOnce() -> T) {
 		let state: &mut WithState = self.try_extension_mut().unwrap();
 
 		let tid = TypeId::of::<T>();
-		if !state.state.contains_key(&tid) {
-			state.state.insert(tid, Box::new((func)()) as Box<dyn Any>);
-		}
+		state.state.entry(tid).or_insert_with(|| Box::new((func)()) as Box<dyn Any>);
 	}
 
 	pub fn update<T: Any>(&mut self, func: impl FnOnce(&mut T)) {
@@ -742,7 +736,7 @@ where
 	ReactiveContext<B, E>: ExtensionMut<WithArena>,
 {
 	fn update(&self) {
-		ReactiveComponent::update(&self)
+		ReactiveComponent::update(self)
 	}
 
 	fn context(&self) -> RefMut<'_, ReactiveContext<B, E>> {

@@ -86,9 +86,9 @@ fn counter(first: usize) -> impl Markup {
 			let counter: &Counter = cx.get();
 			let evenodd = if counter.0 % 2 == 0 { "even" } else { "odd" };
 
-			cx.effect_hash_clean(&evenodd, move |cx| {
+			cx.effect_hash_clean(evenodd, move |_cx| {
 				web_sys::console::log_1(&format!("Run {}", evenodd).into());
-				move |cx| {
+				move |_cx| {
 					web_sys::console::log_1(&format!("Cleanup {}", evenodd).into());
 				}
 			});
@@ -120,7 +120,7 @@ fn button(props: ButtonProps) -> impl Markup {
 
 fn app1() -> impl Markup {
 	reactive(|cx| {
-		cx.with(0 as usize);
+		cx.with(0_usize);
 
 		let on_click = cx.callback_1(|cx, value| {
 			web_sys::console::log_1(&format!("Callback {}", value).into());
@@ -162,9 +162,9 @@ fn fragments() -> impl Markup {
 
 		(
 			a.0.then(|| ("a", "a", "a", classname("a"))),
-			b.0.then(|| ("b", "b", "b")),
-			c.0.then(|| ("c", "c", "c")),
-			d.0.then(|| ("d", "d", "d")),
+			b.0.then_some(("b", "b", "b")),
+			c.0.then_some(("c", "c", "c")),
+			d.0.then_some(("d", "d", "d")),
 			(
 				input((
 					attr("type", "checkbox"),
@@ -196,15 +196,15 @@ fn variables() -> impl Markup {
 		cx.with(Var::new(true));
 
 		let var = cx.get::<Var<bool>>();
-		let text = if *var.get(cx) == true {
+		let text = if *var.get(cx) {
 			"True"
 		} else {
 			"False"
 		};
 
-		cx.effect_hash_clean(text, |cx| {
+		cx.effect_hash_clean(text, |_cx| {
 			console_log!("Effect");
-			|cx| {
+			|_cx| {
 				console_log!("Effect cleanup");
 			}
 		});

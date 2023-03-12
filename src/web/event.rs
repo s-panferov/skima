@@ -93,7 +93,7 @@ where
 
 		tree.closest_node()
 			.unchecked_ref::<HtmlElement>()
-			.add_event_listener_with_callback(&self.event, data.closure.as_ref().unchecked_ref())
+			.add_event_listener_with_callback(self.event, data.closure.as_ref().unchecked_ref())
 			.unwrap();
 
 		tree.data_mut().set_with_key(self.key, data);

@@ -19,7 +19,7 @@ impl Markup for String {
 	fn render(&self, tree: &Tree<WebSys>) {
 		tracing::debug!("Rendering text {}", self);
 
-		let text: Node = DOCUMENT.with(|d| d.create_text_node(&self).unchecked_into());
+		let text: Node = DOCUMENT.with(|d| d.create_text_node(self).unchecked_into());
 		let prev = tree.set_node(text);
 		tree.attach(prev);
 	}
@@ -30,7 +30,7 @@ impl Markup for String {
 		if prev != self {
 			tree.node()
 				.unchecked_ref::<Text>()
-				.set_text_content(Some(&self))
+				.set_text_content(Some(self))
 		}
 	}
 
@@ -55,7 +55,7 @@ impl<'a> Markup<WebSys> for bumpalo::collections::String<'a> {
 	fn render(&self, tree: &Tree<WebSys>) {
 		tracing::debug!("Rendering text {}", self);
 
-		let text: Node = DOCUMENT.with(|d| d.create_text_node(&self).unchecked_into());
+		let text: Node = DOCUMENT.with(|d| d.create_text_node(self).unchecked_into());
 		let prev = tree.set_node(text);
 		tree.attach(prev);
 	}
@@ -66,7 +66,7 @@ impl<'a> Markup<WebSys> for bumpalo::collections::String<'a> {
 		if prev != self {
 			tree.node()
 				.unchecked_ref::<Text>()
-				.set_text_content(Some(&self))
+				.set_text_content(Some(self))
 		}
 	}
 
@@ -95,7 +95,7 @@ impl Markup<WebSys> for &'static str {
 	fn render(&self, tree: &Tree<WebSys>) {
 		tracing::debug!("Rendering text {}", self);
 
-		let text: Node = DOCUMENT.with(|d| d.create_text_node(&self).unchecked_into());
+		let text: Node = DOCUMENT.with(|d| d.create_text_node(self).unchecked_into());
 		let prev = tree.set_node(text);
 		tree.attach(prev);
 	}
@@ -106,7 +106,7 @@ impl Markup<WebSys> for &'static str {
 		if prev != self {
 			tree.node()
 				.unchecked_ref::<Text>()
-				.set_text_content(Some(&self))
+				.set_text_content(Some(self))
 		}
 	}
 
@@ -131,7 +131,7 @@ impl Markup for Cow<'static, str> {
 	fn render(&self, tree: &Tree<WebSys>) {
 		tracing::debug!("Rendering text {}", self);
 
-		let text: Node = DOCUMENT.with(|d| d.create_text_node(&self).unchecked_into());
+		let text: Node = DOCUMENT.with(|d| d.create_text_node(self).unchecked_into());
 		let prev = tree.set_node(text);
 		tree.attach(prev);
 
@@ -144,7 +144,7 @@ impl Markup for Cow<'static, str> {
 		if prev != self {
 			tree.node()
 				.unchecked_ref::<Text>()
-				.set_text_content(Some(&self))
+				.set_text_content(Some(self))
 		}
 	}
 
