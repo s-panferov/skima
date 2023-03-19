@@ -17,6 +17,7 @@ pub mod dispatch;
 pub mod effect;
 pub mod event;
 pub mod helpers;
+mod hook;
 pub mod portal;
 pub mod reactive;
 pub mod root;
@@ -24,7 +25,8 @@ pub mod routing;
 pub mod style;
 pub mod tag;
 pub mod text;
-pub mod tree;
+
+pub use hook::hook;
 
 pub mod prelude {
 	pub use crate::reference::reference;
