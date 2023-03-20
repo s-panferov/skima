@@ -66,12 +66,15 @@ impl Dispatcher {
 	}
 }
 
-struct Provide<T, M> {
-	data: Rc<T>,
+struct Provide<T, M>
+where
+	T: Envelope + Clone,
+{
+	data: T,
 	markup: M,
 }
 
-impl<T: Any + 'static, M: Markup<WebSys>> Markup<WebSys> for Provide<T, M> {
+impl<T: Envelope + Clone + 'static, M: Markup<WebSys>> Markup<WebSys> for Provide<T, M> {
 	fn has_own_node() -> bool {
 		M::has_own_node()
 	}
@@ -86,14 +89,14 @@ impl<T: Any + 'static, M: Markup<WebSys>> Markup<WebSys> for Provide<T, M> {
 	}
 
 	fn drop(&self, tree: &crate::tree::Tree<WebSys>, should_unmount: bool) {
-		tree.data_mut().remove::<Rc<T>>();
+		tree.data_mut().remove::<T>();
 		self.markup.drop(tree, should_unmount)
 	}
 }
 
-pub fn provide<T: Any + 'static>(value: T, markup: impl Markup) -> impl Markup {
+pub fn provide<T: Envelope + Clone + 'static>(value: T, markup: impl Markup) -> impl Markup {
 	Provide {
-		data: Rc::new(value),
+		data: value,
 		markup,
 	}
 }
