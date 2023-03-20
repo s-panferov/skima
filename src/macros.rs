@@ -13,7 +13,7 @@ extern "C" {
 macro_rules! dont_panic {
 	($($x:tt)*) => {{
 		unsafe {
-			rust_panic_called_where_shouldnt();
+			return crate::macros::rust_panic_called_where_shouldnt();
 		}
 	}};
 }
