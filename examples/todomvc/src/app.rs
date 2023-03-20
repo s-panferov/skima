@@ -1,11 +1,14 @@
+use skima::list::list;
 use skima::tree::Tree;
 use skima::web::prelude::*;
-use skima::web::tree::tree;
-use skima::web::WebSys;
+use skima::web::{hook, WebSys};
 use wasm_bindgen::JsCast;
-use web_sys::{Event, HtmlInputElement, KeyboardEvent};
+use web_sys::{Event, KeyboardEvent};
 
 use crate::action::TodoCreate;
+use crate::helpers::input_event_value;
+use crate::todo::todo_item;
+use crate::TodoItems;
 
 pub fn app_header() -> impl Markup {
 	header((
@@ -15,7 +18,7 @@ pub fn app_header() -> impl Markup {
 			classname("new-todo"),
 			attr("placeholder", "What needs to be done?"),
 			attr("autofocus", "true"),
-			tree(|tree| on("keydown", on_keydown(tree.clone()))),
+			hook(|tree| on("keydown", on_keydown(tree.clone()))),
 		)),
 	))
 }
@@ -34,27 +37,16 @@ pub fn app_main() -> impl Markup {
 }
 
 pub fn todo_list() -> impl Markup {
-	ul((classname("todo-list"), todo_item()))
-}
+	reactive(|cx| {
+		let todos_var = cx.env::<TodoItems>();
+		let todos_vec = todos_var.get(cx);
+		let todos_iter = todos_vec.clone().into_iter();
 
-pub fn todo_item() -> impl Markup {
-	li((
-		classname("completed"),
-		div((
-			classname("view"),
-			input((
-				classname("toggle"),
-				attr("type", "checkbox"),
-				attr("checked", ""),
-			)),
-			label("Taste JavaScript"),
-			button(classname("destroy")),
-		)),
-		input((
-			classname("edit"),
-			attr("value", "Create a TodoMVC template"),
-		)),
-	))
+		ul((
+			classname("todo-list"),
+			list(todos_iter, |t, _| todo_item(t.clone())),
+		))
+	})
 }
 
 pub fn app() -> impl Markup {
@@ -65,15 +57,8 @@ fn on_keydown(tree: Tree<WebSys>) -> impl Fn(Event) {
 	move |ev: Event| {
 		let ev: KeyboardEvent = ev.unchecked_into();
 		match ev.key().as_ref() {
-			"Enter" => tree.dispatch(Box::new(TodoCreate(value(ev)))),
+			"Enter" => tree.dispatch(Box::new(TodoCreate(input_event_value(&ev)))),
 			_ => {}
 		}
 	}
-}
-
-fn value(ev: KeyboardEvent) -> String {
-	ev.target()
-		.unwrap()
-		.unchecked_into::<HtmlInputElement>()
-		.value()
 }

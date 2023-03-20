@@ -9,8 +9,11 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 wasm-bindgen="*"
+uuid={version="*", features = ["v4", "fast-rng", "js"]}
 skima={path="../.."}
-
+observe="*"
+console_error_panic_hook="*"
+indexmap="*"
 web-sys={ version = "0.3.60", features = [
   "Window", 
   "console", 

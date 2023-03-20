@@ -55,3 +55,7 @@ web-sys={ version = "0.3.60", features = [
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.33"
+
+[profile.release]
+lto = true
+strip = "debuginfo"
