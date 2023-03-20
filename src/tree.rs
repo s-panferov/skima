@@ -152,9 +152,9 @@ impl<B: Backend> Tree<B> {
 			tree.next.replace(Some(child.0.clone()));
 			child.prev.replace(Some(tree.clone()));
 		} else if let Some(prev) = self.children.borrow().last() {
-  				prev.next.replace(Some(tree.clone()));
-  				tree.prev.replace(Some(prev.0.clone()));
-  			}
+			prev.next.replace(Some(tree.clone()));
+			tree.prev.replace(Some(prev.0.clone()));
+		}
 
 		let (i, _) = self
 			.children
@@ -296,8 +296,8 @@ impl<B: Backend> Tree<B> {
 		if let Some(prev) = prev {
 			B::replace(node, &prev)
 		} else if let Some(cursor) = self.find_pacement() {
-  				B::insert(cursor, node);
-  			}
+			B::insert(cursor, node);
+		}
 	}
 
 	pub fn fist_node(&self) -> Option<B::Node> {
@@ -373,13 +373,9 @@ impl Backend for Noop {
 	type Event = ();
 	type Node = String;
 
-	fn cursor_after(_node: &Self::Node) -> Self::Cursor {
-		
-	}
+	fn cursor_after(_node: &Self::Node) -> Self::Cursor {}
 
-	fn cursor_beginning_of(_node: &Self::Node) -> Self::Cursor {
-		
-	}
+	fn cursor_beginning_of(_node: &Self::Node) -> Self::Cursor {}
 
 	fn insert(_cursor: Self::Cursor, _node: &Self::Node) {}
 
