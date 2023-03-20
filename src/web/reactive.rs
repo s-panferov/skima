@@ -7,7 +7,7 @@ use std::rc::{Rc, Weak};
 use bumpalo::Bump;
 use castaway::cast;
 use indexmap::IndexMap;
-use observe::{batch, Dependencies, Derived, Evaluation, Invalid, State, CHANGED};
+use observe::{Dependencies, Derived, Evaluation, Invalid, State, CHANGED};
 use wasm_bindgen::prelude::{wasm_bindgen, Closure};
 use wasm_bindgen::JsValue;
 
@@ -328,8 +328,7 @@ where
 			.state
 			.get(&TypeId::of::<T>())
 			// FIXME: remove format
-			.unwrap_or_else(|| panic!("Item of type {} is now available",
-				type_name::<T>()))
+			.unwrap_or_else(|| panic!("Item of type {} is now available", type_name::<T>()))
 			.downcast_ref::<T>()
 			.unwrap()
 	}
@@ -351,14 +350,20 @@ where
 		let state: &mut WithState = self.try_extension_mut().unwrap();
 
 		let tid = TypeId::of::<T>();
-		state.state.entry(tid).or_insert_with(|| Box::new(value) as Box<dyn Any>);
+		state
+			.state
+			.entry(tid)
+			.or_insert_with(|| Box::new(value) as Box<dyn Any>);
 	}
 
 	pub fn with_fn<T: Any>(&mut self, func: impl FnOnce() -> T) {
 		let state: &mut WithState = self.try_extension_mut().unwrap();
 
 		let tid = TypeId::of::<T>();
-		state.state.entry(tid).or_insert_with(|| Box::new((func)()) as Box<dyn Any>);
+		state
+			.state
+			.entry(tid)
+			.or_insert_with(|| Box::new((func)()) as Box<dyn Any>);
 	}
 
 	pub fn update<T: Any>(&mut self, func: impl FnOnce(&mut T)) {
@@ -368,13 +373,12 @@ where
 			.entry(TypeId::of::<T>())
 			.and_modify(|v| func(v.downcast_mut().unwrap()));
 
-		self.derived
-			.upgrade()
-			.unwrap()
-			.invalidate(Invalid::Definitely);
-
-		// Hacky way to queue updates in a microtask
-		queue(move || batch(|| {}))
+		observe::batch_microtask(|| {
+			self.derived
+				.upgrade()
+				.unwrap()
+				.invalidate(Invalid::Definitely);
+		});
 	}
 
 	pub fn set<T: Any>(&mut self, value: T) {
@@ -383,13 +387,12 @@ where
 			.state
 			.insert(TypeId::of::<T>(), Box::new(value) as Box<dyn Any>);
 
-		self.derived
-			.upgrade()
-			.unwrap()
-			.invalidate(Invalid::Definitely);
-
-		// Hacky way to queue updates in a microtask
-		queue(move || batch(|| {}))
+		observe::batch_microtask(|| {
+			self.derived
+				.upgrade()
+				.unwrap()
+				.invalidate(Invalid::Definitely);
+		});
 	}
 }
 
@@ -509,15 +512,6 @@ where
 	ReactiveContext<B, E>: ExtensionMut<WithReactions>,
 	ReactiveContext<B, E>: ExtensionMut<WithArena>,
 {
-	pub fn enqueue_update(&self) {
-		let component = self.this.clone();
-		queue(move || {
-			if let Some(c) = component.upgrade() {
-				c.update()
-			}
-		});
-	}
-
 	pub fn update(&self) {
 		// Passing the same context
 		let mut component = self.inner.borrow_mut();
@@ -590,7 +584,7 @@ where
 	ReactiveContext<B, E>: ExtensionMut<WithArena>,
 {
 	fn update(&self) {
-		self.enqueue_update()
+		ReactiveComponent::update(self)
 	}
 }
 
