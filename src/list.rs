@@ -11,7 +11,8 @@ use crate::tree::Tree;
 use crate::{Backend, Markup};
 
 pub struct ListData<K, M> {
-	rendered: RefCell<HashMap<K, M>>,
+	prev_markup: RefCell<HashMap<K, M>>,
+	next_markup: RefCell<HashMap<K, M>>,
 }
 
 pub struct List<K, T, F, M, B>
@@ -61,25 +62,27 @@ where
 
 	fn render(&self, parent: &crate::tree::Tree<B>) {
 		let data = Rc::new(ListData {
-			rendered: Default::default(),
+			prev_markup: Default::default(),
+			next_markup: Default::default(),
 		});
 
-		let mut rendered = data.rendered.borrow_mut();
+		let mut prev_markup = data.prev_markup.borrow_mut();
 		for item in self.data.iter() {
 			let markup = (self.func)(item.1, item.0);
 			let tree = Tree::new(parent);
 			markup.render(&tree);
-			rendered.insert(item.0.clone(), markup);
+			prev_markup.insert(item.0.clone(), markup);
 		}
 
-		std::mem::drop(rendered);
+		std::mem::drop(prev_markup);
 		parent.data_mut().set(data);
 	}
 
-	// TODO: implement key-based moves
+	// TODO: do we need to implement key-based moves?
 	fn diff(&self, prev: &Self, tree: &crate::tree::Tree<B>) {
 		let data = tree.data().get::<Rc<ListData<K, M>>>();
-		let mut rendered = data.rendered.borrow_mut();
+		let mut prev_markup = data.prev_markup.borrow_mut();
+		let mut next_markup = data.next_markup.borrow_mut();
 
 		let mut next_iter = self.data.iter().de_peekable();
 		let mut prev_iter = prev.data.iter().de_peekable();
@@ -97,12 +100,12 @@ where
 			let next_item = next_iter.next().unwrap();
 			let tree = tree.child_at(prev_range.start);
 
-			let prev_m = rendered.get(prev_item.0).unwrap();
+			let prev_m = prev_markup.get(prev_item.0).unwrap();
 			let next_m = (self.func)(next_item.1, next_item.0);
 
 			next_m.diff(prev_m, &tree);
 
-			rendered.insert(next_item.0.clone(), next_m);
+			next_markup.insert(next_item.0.clone(), next_m);
 
 			prev_range.start += 1;
 			next_range.start += 1;
@@ -119,12 +122,12 @@ where
 
 			let tree = tree.child_at(prev_range.start);
 
-			let prev_m = rendered.get(prev_item.0).unwrap();
+			let prev_m = prev_markup.get(prev_item.0).unwrap();
 			let next_m = (self.func)(next_item.1, next_item.0);
 
 			next_m.diff(prev_m, &tree);
 
-			rendered.insert(next_item.0.clone(), next_m);
+			next_markup.insert(next_item.0.clone(), next_m);
 
 			prev_range.end -= 1;
 			next_range.end -= 1;
@@ -136,16 +139,20 @@ where
 				let subtree = tree.insert_at(next_range.start);
 				let markup = (self.func)(node.1, node.0);
 				markup.render(&subtree);
-				rendered.insert(node.0.clone(), markup);
+				next_markup.insert(node.0.clone(), markup);
 				next_range.start += 1;
 			}
+
+			prev_markup.clear();
+			std::mem::swap(&mut *prev_markup, &mut *next_markup);
+
 			return;
 		} else if next_iter.peek().is_none() {
 			// We only have old items, we need to remove them
 			for prev_item in prev_iter {
 				let subtree = tree.child_at(prev_range.start);
 
-				let prev_m = rendered.remove(prev_item.0).unwrap();
+				let prev_m = prev_markup.get(prev_item.0).unwrap();
 
 				prev_m.drop(&subtree, true);
 				subtree.disconnect(true);
@@ -154,6 +161,8 @@ where
 				tree.remove_at(prev_range.start);
 			}
 
+			prev_markup.clear();
+			std::mem::swap(&mut *prev_markup, &mut *next_markup);
 			return;
 		}
 
@@ -161,7 +170,8 @@ where
 			match next_iter.next() {
 				None => {
 					let subtree = tree.child_at(prev_range.start);
-					let prev_m = rendered.remove(prev_item.0).unwrap();
+
+					let prev_m = prev_markup.get(prev_item.0).unwrap();
 
 					prev_m.drop(&subtree, true);
 					subtree.disconnect(true);
@@ -172,12 +182,12 @@ where
 				Some(next_item) => {
 					let tree = tree.child_at(prev_range.start);
 
-					let prev_m = rendered.get(prev_item.0).unwrap();
+					let prev_m = prev_markup.get(prev_item.0).unwrap();
 					let next_m = (self.func)(next_item.1, next_item.0);
 
 					next_m.diff(prev_m, &tree);
 
-					rendered.insert(next_item.0.clone(), next_m);
+					next_markup.insert(next_item.0.clone(), next_m);
 
 					prev_range.start += 1;
 					next_range.start += 1;
@@ -190,17 +200,20 @@ where
 			let markup = (self.func)(next_item.1, next_item.0);
 			markup.render(&subtree);
 
-			rendered.insert(next_item.0.clone(), markup);
+			next_markup.insert(next_item.0.clone(), markup);
 
 			next_range.start += 1;
 			next_range.start += 1;
 			// INSERTS
 		}
+
+		prev_markup.clear();
+		std::mem::swap(&mut *prev_markup, &mut *next_markup);
 	}
 
 	fn drop(&self, tree: &Tree<B>, should_unmount: bool) {
 		let data = tree.data_mut().remove::<Rc<ListData<K, M>>>();
-		let rendered = data.rendered.borrow_mut();
+		let rendered = data.prev_markup.borrow_mut();
 
 		let mut cursor = None;
 		for (i, key) in self.data.keys().enumerate() {
