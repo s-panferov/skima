@@ -47,8 +47,8 @@ where
 			render_subtree(&self.markup, tree);
 			tree.attach(prev)
 		} else if M::dynamic() {
-  				self.markup.diff(&prev.markup, &subtree::<M, _>(tree));
-  			}
+			self.markup.diff(&prev.markup, &subtree::<M, _>(tree));
+		}
 	}
 
 	fn drop(&self, tree: &Tree<WebSys>, should_unmount: bool) {
@@ -100,4 +100,6 @@ pub mod html {
 	define_tag!(section, 14);
 	define_tag!(ul, 15);
 	define_tag!(li, 16);
+	define_tag!(video, 17);
+	define_tag!(source, 18);
 }

@@ -13,6 +13,7 @@ license = "MIT"
 
 members = [
     ".",
+    "macro",
     "examples/todomvc"
 ]
 
@@ -20,23 +21,25 @@ members = [
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-bumpalo = { version = "3.11.1", features = ["collections"] }
-indexmap= "1.9.2"
+bumpalo = { version = "3.12.0", features = ["collections"] }
+indexmap= "1.9.3"
 by_address= "1.1.0"
 tracing= "0.1.37"
 castaway= "0.2.2"
 fxhash= "0.2.1"
 downcast-rs = "1.2.0"
-no-panic= "0.1.17"
+no-panic= "0.1.22"
 observe="1.1.0"
 
-wasm-bindgen = "0.2.83"
-js-sys = "0.3.60"
+wasm-bindgen = "0.2.84"
+js-sys = "0.3.61"
 smallvec= "1.10.0"
 console_error_panic_hook = "0.1.7"
 tracing-wasm = "0.2.1"
 
-web-sys={ version = "0.3.60", features = [
+skima-rsx = { path = "./macro" }
+
+web-sys={ version = "0.3.61", features = [
   "Window", 
   "console", 
   "Event", 
@@ -54,7 +57,7 @@ web-sys={ version = "0.3.60", features = [
 ] }
 
 [dev-dependencies]
-wasm-bindgen-test = "0.3.33"
+wasm-bindgen-test = "0.3.34"
 
 [profile.release]
 lto = true
