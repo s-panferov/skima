@@ -53,6 +53,8 @@ pub struct TreeInner<B: Backend> {
 
 	// Mutable element state
 	pub(crate) data: RefCell<AnyData>,
+
+	pub(crate) backend: B::Data,
 }
 
 impl<B: Backend> Debug for Tree<B>
@@ -77,7 +79,7 @@ where
 }
 
 impl<B: Backend> Tree<B> {
-	pub fn root(node: B::Node) -> Self {
+	pub fn root(node: B::Node, data: B::Data) -> Self {
 		Tree(Rc::new(TreeInner {
 			level: 0,
 			parent: None,
@@ -87,10 +89,11 @@ impl<B: Backend> Tree<B> {
 			children: RefCell::new(IndexSet::new()),
 			node: RefCell::new(Some(node)),
 			data: RefCell::new(Default::default()),
+			backend: data,
 		}))
 	}
 
-	pub fn ephemeral_root() -> Self {
+	pub fn ephemeral_root(backend: B::Data) -> Self {
 		Tree(Rc::new(TreeInner {
 			level: 0,
 			parent: None,
@@ -100,6 +103,7 @@ impl<B: Backend> Tree<B> {
 			children: RefCell::new(IndexSet::new()),
 			node: RefCell::new(None),
 			data: RefCell::new(Default::default()),
+			backend: backend,
 		}))
 	}
 
@@ -113,6 +117,7 @@ impl<B: Backend> Tree<B> {
 			children: RefCell::new(IndexSet::new()),
 			node: RefCell::new(None),
 			data: RefCell::new(Default::default()),
+			backend: parent.backend.clone(),
 		}));
 
 		if let Some(prev) = parent.children.borrow().last() {
@@ -138,6 +143,7 @@ impl<B: Backend> Tree<B> {
 			children: RefCell::new(IndexSet::new()),
 			node: RefCell::new(None),
 			data: RefCell::new(Default::default()),
+			backend: self.backend.clone(),
 		}));
 
 		if index > self.children.borrow().len() {
@@ -372,6 +378,7 @@ impl Backend for Noop {
 	type Cursor = ();
 	type Event = ();
 	type Node = String;
+	type Data = ();
 
 	fn cursor_after(_node: &Self::Node) -> Self::Cursor {}
 
@@ -390,7 +397,7 @@ mod tests {
 
 	#[test]
 	fn test() {
-		let root = Tree::<Noop>::root("Root".into());
+		let root = Tree::<Noop>::root("Root".into(), ());
 		let child1 = Tree::new(&root);
 		child1.set_node("Child 1".into());
 

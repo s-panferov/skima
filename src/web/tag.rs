@@ -1,8 +1,10 @@
+use std::cell::RefCell;
 use std::marker::PhantomData;
 
 use wasm_bindgen::JsCast;
 use web_sys::HtmlElement;
 
+use crate::r#static::{StaticHtml, StaticNode};
 use crate::tree::Tree;
 use crate::web::helpers::dom::DOCUMENT;
 use crate::web::{Backend, Markup, WebSys};
@@ -64,6 +66,70 @@ where
 
 		if should_unmount {
 			tree.node().unchecked_ref::<HtmlElement>().remove()
+		}
+	}
+}
+
+impl<'a, M, const N: usize> Markup<StaticHtml<'a>> for Tag<M, StaticHtml<'a>, N>
+where
+	M: Markup<StaticHtml<'a>>,
+{
+	fn has_own_node() -> bool {
+		true
+	}
+
+	fn dynamic() -> bool {
+		M::dynamic()
+	}
+
+	fn render(&self, tree: &Tree<StaticHtml<'a>>) {
+		tracing::debug!("Rendering tag {}", self.tag);
+		let backend = tree.backend.clone();
+		let bump = &backend.bump;
+		let element = bump.alloc(StaticNode {
+			tag: self.tag,
+			parent: RefCell::new(None),
+			children: RefCell::new(vec![]),
+		});
+
+		let prev = tree.set_node(element);
+		render_subtree(&self.markup, tree);
+		tree.attach(prev);
+	}
+
+	fn diff(&self, prev: &Self, tree: &Tree<StaticHtml<'a>>) {
+		if prev.tag != self.tag {
+			let backend = tree.backend.clone();
+			let bump = &backend.bump;
+			let element = bump.alloc(StaticNode {
+				tag: self.tag,
+				parent: RefCell::new(None),
+				children: RefCell::new(vec![]),
+			});
+
+			let prev = tree.set_node(element);
+			tree.clear();
+
+			render_subtree(&self.markup, tree);
+			tree.attach(prev)
+		} else if M::dynamic() {
+			self.markup.diff(&prev.markup, &subtree::<M, _>(tree));
+		}
+	}
+
+	fn drop(&self, tree: &Tree<StaticHtml<'a>>, should_unmount: bool) {
+		tracing::debug!("Undo tag");
+
+		if M::has_own_node() {
+			self.markup.drop(&tree.first_child(), false);
+		} else {
+			self.markup.drop(tree, false);
+		}
+
+		tree.clear();
+
+		if should_unmount {
+			unimplemented!()
 		}
 	}
 }

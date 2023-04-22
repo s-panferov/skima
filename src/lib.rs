@@ -25,6 +25,7 @@ pub mod ext;
 mod iter;
 pub mod list;
 pub mod reference;
+pub mod r#static;
 pub mod tree;
 mod tuple;
 pub mod web;
@@ -106,6 +107,8 @@ pub trait Backend: std::fmt::Debug {
 	type Node: std::fmt::Debug + Clone;
 	type Event;
 	type Cursor;
+
+	type Data: Clone;
 
 	type Phantom = PhantomData<Self>;
 

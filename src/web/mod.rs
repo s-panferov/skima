@@ -40,13 +40,13 @@ pub type Target = WebSys;
 
 #[derive(Default, Debug)]
 pub struct WebSys {}
-
 impl WebSys {}
 
 impl Backend for WebSys {
 	type Node = web_sys::Node;
 	type Cursor = Cursor;
 	type Event = web_sys::Event;
+	type Data = ();
 
 	fn replace(node: &Self::Node, prev: &Self::Node) {
 		if let Some(parent_element) = prev.parent_element() {

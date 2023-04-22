@@ -19,7 +19,7 @@ where
 	M: Markup<WebSys>,
 {
 	pub fn render(markup: M, container: HtmlElement) -> Root<M> {
-		let tree = Tree::root(container.unchecked_into());
+		let tree = Tree::root(container.unchecked_into(), ());
 		console_log!("Render root subtree");
 
 		render_subtree(&markup, &tree);
@@ -31,7 +31,7 @@ where
 	}
 
 	pub fn ephemeral(markup: M) -> Root<M> {
-		let tree = Tree::ephemeral_root();
+		let tree = Tree::ephemeral_root(());
 		console_log!("Render root subtree");
 
 		if !M::has_own_node() {
