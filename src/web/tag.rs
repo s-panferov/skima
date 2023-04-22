@@ -1,14 +1,8 @@
-use std::cell::RefCell;
 use std::marker::PhantomData;
 
-use wasm_bindgen::JsCast;
-use web_sys::HtmlElement;
-
-use crate::r#static::{StaticHtml, StaticNode};
 use crate::tree::Tree;
-use crate::web::helpers::dom::DOCUMENT;
-use crate::web::{Backend, Markup, WebSys};
-use crate::{render_subtree, subtree};
+use crate::web::{Backend, Markup};
+use crate::{render_subtree, subtree, HtmlBackend};
 
 #[derive(Clone)]
 pub struct Tag<M: Markup<B>, B: Backend, const N: usize> {
@@ -17,9 +11,9 @@ pub struct Tag<M: Markup<B>, B: Backend, const N: usize> {
 	_b: PhantomData<B>,
 }
 
-impl<M, const N: usize> Markup<WebSys> for Tag<M, WebSys, N>
+impl<M, B: HtmlBackend, const N: usize> Markup<B> for Tag<M, B, N>
 where
-	M: Markup<WebSys>,
+	M: Markup<B>,
 {
 	fn has_own_node() -> bool {
 		true
@@ -29,19 +23,19 @@ where
 		M::dynamic()
 	}
 
-	fn render(&self, tree: &Tree<WebSys>) {
+	fn render(&self, tree: &Tree<B>) {
 		tracing::debug!("Rendering tag {}", self.tag);
 
-		let element = DOCUMENT.with(|d| d.create_element(self.tag).unwrap());
-		let prev = tree.set_node(element.unchecked_into());
+		let node = B::element_to_node(tree.backend.create_element(self.tag));
+		let prev = tree.set_node(node);
 		render_subtree(&self.markup, tree);
 		tree.attach(prev);
 	}
 
-	fn diff(&self, prev: &Self, tree: &Tree<WebSys>) {
+	fn diff(&self, prev: &Self, tree: &Tree<B>) {
 		if prev.tag != self.tag {
 			// re-render
-			let element = DOCUMENT.with(|d| d.create_element(self.tag).unwrap());
+			let element = B::element_to_node(tree.backend.create_element(self.tag));
 
 			let prev = tree.set_node(element.into());
 			tree.clear();
@@ -53,9 +47,8 @@ where
 		}
 	}
 
-	fn drop(&self, tree: &Tree<WebSys>, should_unmount: bool) {
+	fn drop(&self, tree: &Tree<B>, should_unmount: bool) {
 		tracing::debug!("Undo tag");
-
 		if M::has_own_node() {
 			self.markup.drop(&tree.first_child(), false);
 		} else {
@@ -65,71 +58,7 @@ where
 		tree.clear();
 
 		if should_unmount {
-			tree.node().unchecked_ref::<HtmlElement>().remove()
-		}
-	}
-}
-
-impl<'a, M, const N: usize> Markup<StaticHtml<'a>> for Tag<M, StaticHtml<'a>, N>
-where
-	M: Markup<StaticHtml<'a>>,
-{
-	fn has_own_node() -> bool {
-		true
-	}
-
-	fn dynamic() -> bool {
-		M::dynamic()
-	}
-
-	fn render(&self, tree: &Tree<StaticHtml<'a>>) {
-		tracing::debug!("Rendering tag {}", self.tag);
-		let backend = tree.backend.clone();
-		let bump = &backend.bump;
-		let element = bump.alloc(StaticNode {
-			tag: self.tag,
-			parent: RefCell::new(None),
-			children: RefCell::new(vec![]),
-		});
-
-		let prev = tree.set_node(element);
-		render_subtree(&self.markup, tree);
-		tree.attach(prev);
-	}
-
-	fn diff(&self, prev: &Self, tree: &Tree<StaticHtml<'a>>) {
-		if prev.tag != self.tag {
-			let backend = tree.backend.clone();
-			let bump = &backend.bump;
-			let element = bump.alloc(StaticNode {
-				tag: self.tag,
-				parent: RefCell::new(None),
-				children: RefCell::new(vec![]),
-			});
-
-			let prev = tree.set_node(element);
-			tree.clear();
-
-			render_subtree(&self.markup, tree);
-			tree.attach(prev)
-		} else if M::dynamic() {
-			self.markup.diff(&prev.markup, &subtree::<M, _>(tree));
-		}
-	}
-
-	fn drop(&self, tree: &Tree<StaticHtml<'a>>, should_unmount: bool) {
-		tracing::debug!("Undo tag");
-
-		if M::has_own_node() {
-			self.markup.drop(&tree.first_child(), false);
-		} else {
-			self.markup.drop(tree, false);
-		}
-
-		tree.clear();
-
-		if should_unmount {
-			unimplemented!()
+			B::remove(&tree.node());
 		}
 	}
 }

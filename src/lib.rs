@@ -103,20 +103,35 @@ pub fn subtree<M: Markup<B>, B: Backend>(parent: &Tree<B>) -> Tree<B> {
 	}
 }
 
-pub trait Backend: std::fmt::Debug {
+pub trait HtmlBackend: Backend {}
+
+pub trait Backend: std::fmt::Debug + Clone {
+	type Element: std::fmt::Debug + Clone;
+	type Text: std::fmt::Debug + Clone;
 	type Node: std::fmt::Debug + Clone;
+
 	type Event;
 	type Cursor;
-
-	type Data: Clone;
 
 	type Phantom = PhantomData<Self>;
 
 	fn replace(node: &Self::Node, prev: &Self::Node);
 	fn insert(cursor: Self::Cursor, node: &Self::Node);
+	fn remove(node: &Self::Node);
 
-	fn cursor_beginning_of(node: &Self::Node) -> Self::Cursor;
+	fn cursor_beginning_of(node: &Self::Element) -> Self::Cursor;
 	fn cursor_after(node: &Self::Node) -> Self::Cursor;
+
+	fn create_element(&self, tag: &'static str) -> Self::Element;
+	fn create_text(&self, data: &str) -> Self::Text;
+
+	fn set_text(&self, text: &Self::Text, data: &str);
+
+	fn text_to_node(text: Self::Text) -> Self::Node;
+	fn element_to_node(element: Self::Element) -> Self::Node;
+
+	fn node_to_element(node: Self::Node) -> Option<Self::Element>;
+	fn node_to_text(node: Self::Node) -> Option<Self::Text>;
 }
 
 impl<B: Backend> Markup<B> for () {

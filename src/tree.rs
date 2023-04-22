@@ -54,7 +54,7 @@ pub struct TreeInner<B: Backend> {
 	// Mutable element state
 	pub(crate) data: RefCell<AnyData>,
 
-	pub(crate) backend: B::Data,
+	pub(crate) backend: B,
 }
 
 impl<B: Backend> Debug for Tree<B>
@@ -79,7 +79,7 @@ where
 }
 
 impl<B: Backend> Tree<B> {
-	pub fn root(node: B::Node, data: B::Data) -> Self {
+	pub fn root(node: B::Element, data: B) -> Self {
 		Tree(Rc::new(TreeInner {
 			level: 0,
 			parent: None,
@@ -87,13 +87,13 @@ impl<B: Backend> Tree<B> {
 			prev: RefCell::new(None),
 			next: RefCell::new(None),
 			children: RefCell::new(IndexSet::new()),
-			node: RefCell::new(Some(node)),
+			node: RefCell::new(Some(B::element_to_node(node))),
 			data: RefCell::new(Default::default()),
 			backend: data,
 		}))
 	}
 
-	pub fn ephemeral_root(backend: B::Data) -> Self {
+	pub fn ephemeral_root(backend: B) -> Self {
 		Tree(Rc::new(TreeInner {
 			level: 0,
 			parent: None,
@@ -342,7 +342,9 @@ impl<B: Backend> Tree<B> {
 				if let Some(parent) = &cursor.parent {
 					let node = parent.node.borrow();
 					if let Some(node) = &*node {
-						return Some(B::cursor_beginning_of(node));
+						return Some(B::cursor_beginning_of(
+							&B::node_to_element(node.clone()).unwrap(),
+						));
 					} else {
 						std::mem::drop(node);
 						cursor = parent.clone()
@@ -371,22 +373,55 @@ impl<B: Backend> Tree<B> {
 )
 */
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Noop;
 
 impl Backend for Noop {
 	type Cursor = ();
 	type Event = ();
-	type Node = String;
-	type Data = ();
+	type Element = String;
 
 	fn cursor_after(_node: &Self::Node) -> Self::Cursor {}
 
-	fn cursor_beginning_of(_node: &Self::Node) -> Self::Cursor {}
+	fn cursor_beginning_of(_node: &Self::Element) -> Self::Cursor {}
 
 	fn insert(_cursor: Self::Cursor, _node: &Self::Node) {}
 
 	fn replace(_node: &Self::Node, _prev: &Self::Node) {}
+
+	type Text = String;
+
+	fn create_element(&self, tag: &'static str) -> Self::Element {
+		tag.into()
+	}
+
+	fn create_text(&self, data: &str) -> Self::Text {
+		data.to_owned()
+	}
+
+	fn remove(node: &Self::Node) {}
+
+	type Phantom = std::marker::PhantomData<Self>;
+
+	fn text_to_node(text: Self::Text) -> Self::Node {
+		text
+	}
+
+	fn element_to_node(element: Self::Element) -> Self::Node {
+		element
+	}
+
+	fn node_to_element(node: Self::Node) -> Option<Self::Element> {
+		Some("".into())
+	}
+
+	type Node = String;
+
+	fn set_text(&self, text: &Self::Text, data: &str) {}
+
+	fn node_to_text(node: Self::Node) -> Option<Self::Text> {
+		None
+	}
 }
 
 #[cfg(test)]
@@ -397,7 +432,7 @@ mod tests {
 
 	#[test]
 	fn test() {
-		let root = Tree::<Noop>::root("Root".into(), ());
+		let root = Tree::<Noop>::root("Root".into(), Noop);
 		let child1 = Tree::new(&root);
 		child1.set_node("Child 1".into());
 

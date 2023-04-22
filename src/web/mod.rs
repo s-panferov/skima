@@ -1,7 +1,9 @@
 pub use callback::Callback;
+use wasm_bindgen::JsCast;
+use web_sys::Element;
 
 use self::helpers::cursor::Cursor;
-use crate::{Backend, Markup};
+use crate::{Backend, HtmlBackend, Markup};
 
 pub mod attr;
 pub mod bump;
@@ -38,15 +40,18 @@ pub use tag::html;
 
 pub type Target = WebSys;
 
-#[derive(Default, Debug)]
-pub struct WebSys {}
+#[derive(Default, Clone, Debug)]
+pub struct WebSys;
 impl WebSys {}
 
+impl HtmlBackend for WebSys {}
+
 impl Backend for WebSys {
+	type Text = web_sys::Text;
+	type Element = web_sys::Element;
 	type Node = web_sys::Node;
 	type Cursor = Cursor;
 	type Event = web_sys::Event;
-	type Data = ();
 
 	fn replace(node: &Self::Node, prev: &Self::Node) {
 		if let Some(parent_element) = prev.parent_element() {
@@ -58,11 +63,49 @@ impl Backend for WebSys {
 		cursor.range.insert_node(node).unwrap()
 	}
 
+	fn remove(node: &Self::Node) {
+		if let Some(parent_element) = node.parent_element() {
+			parent_element.remove_child(node).unwrap();
+		}
+	}
+
 	fn cursor_after(node: &Self::Node) -> Self::Cursor {
 		Cursor::after(node).unwrap()
 	}
 
-	fn cursor_beginning_of(node: &Self::Node) -> Self::Cursor {
+	fn cursor_beginning_of(node: &Self::Element) -> Self::Cursor {
 		Cursor::beginning_of(node).unwrap()
+	}
+
+	fn create_element(&self, tag: &'static str) -> Self::Element {
+		let doc = web_sys::window().unwrap().document().unwrap();
+		doc.create_element(tag).unwrap().unchecked_into()
+	}
+
+	fn create_text(&self, data: &str) -> Self::Text {
+		let doc = web_sys::window().unwrap().document().unwrap();
+		doc.create_text_node(data)
+	}
+
+	fn text_to_node(text: Self::Text) -> Self::Node {
+		text.unchecked_into()
+	}
+
+	fn element_to_node(element: Self::Element) -> Self::Node {
+		element.unchecked_into()
+	}
+
+	type Phantom = std::marker::PhantomData<Self>;
+
+	fn node_to_element(node: Self::Node) -> Option<Self::Element> {
+		node.dyn_into::<Element>().ok()
+	}
+
+	fn set_text(&self, text: &Self::Text, data: &str) {
+		text.set_text_content(Some(data));
+	}
+
+	fn node_to_text(node: Self::Node) -> Option<Self::Text> {
+		node.dyn_into::<web_sys::Text>().ok()
 	}
 }

@@ -105,9 +105,11 @@ where
 mod tests {
 	use super::*;
 	use crate::web::html::div;
+	use crate::web::WebSys;
 
 	#[test]
 	fn test() {
-		let _m = bump(|b| div(bumpalo::format!(in b, "String {}", 10).into_bump_str()));
+		let _m =
+			bump(|b| div::<_, WebSys>(bumpalo::format!(in b, "String {}", 10).into_bump_str()));
 	}
 }
