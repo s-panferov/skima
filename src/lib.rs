@@ -25,11 +25,14 @@ pub mod ext;
 mod iter;
 pub mod list;
 pub mod reference;
+mod tap;
 pub mod tree;
 mod tuple;
 pub mod web;
 
 mod docs;
+
+pub use tap::tap;
 
 pub use crate::dynamic::dynamic;
 

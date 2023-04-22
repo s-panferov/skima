@@ -10,7 +10,7 @@ pub struct WithTree<M: Markup<B>, B: Backend, F: Fn(&Tree<B>) -> M> {
 	_b: PhantomData<B>,
 }
 
-pub fn hook<M, B, F>(func: F) -> impl Markup<B>
+pub fn tap<M, B, F>(func: F) -> impl Markup<B>
 where
 	M: Markup<B> + 'static,
 	B: Backend,

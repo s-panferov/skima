@@ -1,7 +1,8 @@
 use skima::list::list;
+use skima::tap;
 use skima::tree::Tree;
 use skima::web::prelude::*;
-use skima::web::{hook, WebSys};
+use skima::web::WebSys;
 use wasm_bindgen::JsCast;
 use web_sys::{Event, KeyboardEvent};
 
@@ -18,7 +19,7 @@ pub fn app_header() -> impl Markup {
 			classname("new-todo"),
 			attr("placeholder", "What needs to be done?"),
 			attr("autofocus", "true"),
-			hook(|tree| on("keydown", on_keydown(tree.clone()))),
+			tap(|tree| on("keydown", on_keydown(tree.clone()))),
 		)),
 	))
 }

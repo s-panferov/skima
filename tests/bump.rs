@@ -1,15 +1,9 @@
-
 use skima::web::bump::bump;
 use skima::web::html::*;
-
-
 use skima::Markup;
-
 use wasm_bindgen_test::wasm_bindgen_test;
 
 wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
-
-
 
 fn bump_cx() -> impl Markup {
 	bump(|cx| {

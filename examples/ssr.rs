@@ -6,7 +6,7 @@ use skima::web::tag::Tag;
 use skima::web::HtmlBackend;
 
 pub fn test<B: HtmlBackend>() -> impl Markup<B> {
-	return div(());
+	div(())
 }
 
 fn main() {
