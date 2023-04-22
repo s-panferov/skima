@@ -25,7 +25,6 @@ pub mod ext;
 mod iter;
 pub mod list;
 pub mod reference;
-pub mod r#static;
 pub mod tree;
 mod tuple;
 pub mod web;
@@ -101,15 +100,6 @@ pub fn subtree<M: Markup<B>, B: Backend>(parent: &Tree<B>) -> Tree<B> {
 	} else {
 		parent.clone()
 	}
-}
-
-pub trait HtmlBackend: Backend {
-	fn set_attribute(&self, element: &Self::Element, name: &str, value: &str);
-	fn remove_attribute(&self, element: &Self::Element, name: &str);
-	fn set_property(&self, element: &Self::Element, name: &str, value: &str);
-	fn remove_property(&self, element: &Self::Element, name: &str);
-	fn add_class(&self, element: &Self::Element, class: &str);
-	fn remove_class(&self, element: &Self::Element, class: &str);
 }
 
 pub trait Backend: std::fmt::Debug + Clone {

@@ -2,10 +2,9 @@ use std::borrow::Cow;
 
 use crate::tree::Tree;
 use crate::web::Markup;
-use crate::HtmlBackend;
 
 pub macro impl_string($ty:ty $(, $a:lifetime )?) {
-	impl<$( $a, )? B: HtmlBackend> Markup<B> for $ty {
+	impl<$( $a, )? B: $crate::web::HtmlBackend> Markup<B> for $ty {
 		fn has_own_node() -> bool {
 			true
 		}

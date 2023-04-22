@@ -1,6 +1,6 @@
-use super::StringLike;
+use super::{HtmlBackend, StringLike};
 use crate::tree::Tree;
-use crate::{HtmlBackend, Markup};
+use crate::Markup;
 pub struct Property<S1: StringLike, S2: StringLike>(S1, S2);
 
 pub fn property<S1: StringLike, S2: StringLike>(prop: S1, value: S2) -> Property<S1, S2> {

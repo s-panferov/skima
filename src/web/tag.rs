@@ -1,8 +1,9 @@
 use std::marker::PhantomData;
 
+use super::HtmlBackend;
 use crate::tree::Tree;
 use crate::web::{Backend, Markup};
-use crate::{render_subtree, subtree, HtmlBackend};
+use crate::{render_subtree, subtree};
 
 #[derive(Clone)]
 pub struct Tag<M: Markup<B>, B: Backend, const N: usize> {

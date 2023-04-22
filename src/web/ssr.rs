@@ -1,11 +1,19 @@
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::{Backend, HtmlBackend};
+use super::HtmlBackend;
+use crate::tree::Tree;
+use crate::{Backend, Markup};
 
 #[derive(Clone, Debug)]
 pub struct StaticHtml<'a> {
 	pub bump: &'a bumpalo::Bump,
+}
+
+impl<'a> StaticHtml<'a> {
+	pub fn new(bump: &'a bumpalo::Bump) -> Self {
+		Self { bump }
+	}
 }
 
 #[derive(Debug, Clone)]
@@ -258,4 +266,19 @@ fn find_index<'a>(parent: &'a StaticElement<'a>, node: StaticNode<'a>) -> usize 
 		})
 		.unwrap()
 		.0
+}
+
+pub fn render<'a, M: Markup<StaticHtml<'a>>>(backend: StaticHtml<'a>, markup: M) -> String {
+	let tree = Tree::ephemeral_root(backend);
+
+	markup.render(&tree);
+
+	let mut buffer = String::new();
+
+	StaticHtml::node_to_element(tree.node().clone())
+		.unwrap()
+		.to_html(&mut buffer)
+		.unwrap();
+
+	buffer
 }

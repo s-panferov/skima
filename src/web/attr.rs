@@ -1,7 +1,8 @@
 use std::borrow::Cow;
 
+use super::HtmlBackend;
 use crate::tree::Tree;
-use crate::{HtmlBackend, Markup};
+use crate::Markup;
 
 #[derive(Clone)]
 pub struct ClassList<S: StringLike>(S);

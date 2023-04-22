@@ -3,7 +3,7 @@ use wasm_bindgen::JsCast;
 use web_sys::Element;
 
 use self::helpers::cursor::Cursor;
-use crate::{Backend, HtmlBackend, Markup};
+use crate::{Backend, Markup};
 
 pub mod attr;
 pub mod bump;
@@ -18,6 +18,7 @@ pub mod portal;
 pub mod reactive;
 pub mod root;
 pub mod routing;
+pub mod ssr;
 pub mod style;
 pub mod tag;
 pub mod text;
@@ -39,6 +40,15 @@ pub use attr::*;
 pub use tag::html;
 
 pub type Target = WebSys;
+
+pub trait HtmlBackend: Backend {
+	fn set_attribute(&self, element: &Self::Element, name: &str, value: &str);
+	fn remove_attribute(&self, element: &Self::Element, name: &str);
+	fn set_property(&self, element: &Self::Element, name: &str, value: &str);
+	fn remove_property(&self, element: &Self::Element, name: &str);
+	fn add_class(&self, element: &Self::Element, class: &str);
+	fn remove_class(&self, element: &Self::Element, class: &str);
+}
 
 #[derive(Default, Clone, Debug)]
 pub struct WebSys;
