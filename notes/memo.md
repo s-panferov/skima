@@ -1,3 +1,7 @@
+```
+done: true
+```
+
 ## Store closures in memo
 
 An interesting case of working with `Memo` objects

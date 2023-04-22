@@ -19,6 +19,7 @@ pub mod macros;
 pub mod action;
 pub mod anydata;
 pub mod combine;
+pub mod component;
 pub mod dynamic;
 pub mod ext;
 mod iter;
@@ -64,7 +65,8 @@ where
 	fn diff(&self, prev: &dyn AnyMarkup<B>, tree: &Tree<B>) {
 		Markup::diff(
 			self,
-			prev.downcast_ref::<T>().unwrap_or_else(|| { panic!("{}", std::any::type_name::<T>()) }),
+			prev.downcast_ref::<T>()
+				.unwrap_or_else(|| panic!("{}", std::any::type_name::<T>())),
 			tree,
 		)
 	}
