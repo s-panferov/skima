@@ -1,11 +1,7 @@
 use std::borrow::Cow;
 
-use wasm_bindgen::JsCast;
-use web_sys::HtmlElement;
-
 use crate::tree::Tree;
-use crate::web::WebSys;
-use crate::Markup;
+use crate::{HtmlBackend, Markup};
 
 #[derive(Clone)]
 pub struct ClassList<S: StringLike>(S);
@@ -40,7 +36,7 @@ pub fn attr<S1: StringLike, S2: StringLike>(attr: S1, value: S2) -> Attr<S1, S2>
 	Attr(attr, value)
 }
 
-impl<S: StringLike> Markup for ClassList<S> {
+impl<B: HtmlBackend, S: StringLike> Markup<B> for ClassList<S> {
 	fn has_own_node() -> bool {
 		false
 	}
@@ -49,35 +45,28 @@ impl<S: StringLike> Markup for ClassList<S> {
 		S::DYNAMIC
 	}
 
-	fn render(&self, tree: &Tree<WebSys>) {
-		tree.closest_node()
-			.unchecked_ref::<HtmlElement>()
-			.class_list()
-			.add_1(self.0.as_ref())
-			.unwrap();
+	fn render(&self, tree: &Tree<B>) {
+		let element = B::node_to_element(tree.closest_node()).unwrap();
+		tree.backend.add_class(&element, self.0.as_ref())
 	}
 
-	fn diff(&self, prev: &Self, tree: &Tree<WebSys>) {
+	fn diff(&self, prev: &Self, tree: &Tree<B>) {
 		if prev.0.as_ref() != self.0.as_ref() {
-			let element = tree.closest_node();
-			let element = element.unchecked_ref::<HtmlElement>();
-			element.class_list().remove_1(prev.0.as_ref()).unwrap();
-			element.class_list().add_1(self.0.as_ref()).unwrap();
+			let element = B::node_to_element(tree.closest_node()).unwrap();
+			tree.backend.remove_class(&element, prev.0.as_ref());
+			tree.backend.add_class(&element, self.0.as_ref());
 		}
 	}
 
-	fn drop(&self, tree: &Tree<WebSys>, should_unmount: bool) {
+	fn drop(&self, tree: &Tree<B>, should_unmount: bool) {
 		if should_unmount {
-			tree.closest_node()
-				.unchecked_ref::<HtmlElement>()
-				.class_list()
-				.remove_1(self.0.as_ref())
-				.unwrap();
+			let element = B::node_to_element(tree.closest_node()).unwrap();
+			tree.backend.remove_class(&element, self.0.as_ref());
 		}
 	}
 }
 
-impl<S1: StringLike, S2: StringLike> Markup for Attr<S1, S2> {
+impl<B: HtmlBackend, S1: StringLike, S2: StringLike> Markup<B> for Attr<S1, S2> {
 	fn has_own_node() -> bool {
 		false
 	}
@@ -86,28 +75,24 @@ impl<S1: StringLike, S2: StringLike> Markup for Attr<S1, S2> {
 		S1::DYNAMIC || S2::DYNAMIC
 	}
 
-	fn render(&self, tree: &Tree<WebSys>) {
-		tree.closest_node()
-			.unchecked_ref::<HtmlElement>()
-			.set_attribute(self.0.as_ref(), self.1.as_ref())
-			.unwrap();
+	fn render(&self, tree: &Tree<B>) {
+		let element = B::node_to_element(tree.closest_node()).unwrap();
+		tree.backend
+			.set_attribute(&element, self.0.as_ref(), self.1.as_ref())
 	}
 
-	fn diff(&self, prev: &Self, tree: &Tree<WebSys>) {
+	fn diff(&self, prev: &Self, tree: &Tree<B>) {
 		if prev.1.as_ref() != self.1.as_ref() {
-			tree.closest_node()
-				.unchecked_ref::<HtmlElement>()
-				.set_attribute(self.0.as_ref(), self.1.as_ref())
-				.unwrap();
+			let element = B::node_to_element(tree.closest_node()).unwrap();
+			tree.backend
+				.set_attribute(&element, self.0.as_ref(), self.1.as_ref());
 		}
 	}
 
-	fn drop(&self, tree: &Tree<WebSys>, should_unmount: bool) {
+	fn drop(&self, tree: &Tree<B>, should_unmount: bool) {
 		if should_unmount {
-			tree.closest_node()
-				.unchecked_ref::<HtmlElement>()
-				.remove_attribute(self.0.as_ref())
-				.unwrap();
+			let element = B::node_to_element(tree.closest_node()).unwrap();
+			tree.backend.remove_attribute(&element, self.0.as_ref());
 		}
 	}
 }

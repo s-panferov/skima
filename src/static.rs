@@ -1,5 +1,6 @@
-use std::borrow::Borrow;
+use std::borrow::BorrowMut;
 use std::cell::RefCell;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{Backend, HtmlBackend};
 
@@ -19,6 +20,9 @@ pub struct StaticElement<'a> {
 	pub tag: &'a str,
 	pub parent: RefCell<Option<&'a StaticElement<'a>>>,
 	pub children: RefCell<Vec<StaticNode<'a>>>,
+	pub class: RefCell<BTreeSet<&'a str>>,
+	pub attr: RefCell<BTreeMap<&'a str, &'a str>>,
+	pub style: RefCell<BTreeMap<&'a str, &'a str>>,
 }
 
 impl<'a> StaticElement<'a> {
@@ -27,6 +31,9 @@ impl<'a> StaticElement<'a> {
 			tag,
 			parent: RefCell::new(None),
 			children: RefCell::new(Vec::new()),
+			class: Default::default(),
+			attr: Default::default(),
+			style: Default::default(),
 		}
 	}
 }
@@ -34,7 +41,44 @@ impl<'a> StaticElement<'a> {
 impl<'a> StaticElement<'a> {
 	pub fn to_html(&self, buffer: &mut String) -> Result<(), std::fmt::Error> {
 		use std::fmt::Write;
-		write!(buffer, "<{}>", self.tag)?;
+		write!(buffer, "<{} ", self.tag)?;
+
+		let mut class: Option<&'a str> = None;
+		for (name, value) in self.attr.borrow().iter() {
+			if *name == "class" {
+				class = Some(value);
+			} else {
+				write!(buffer, r#"{}="{}""#, name, value)?;
+			}
+		}
+
+		{
+			let classes = self.class.borrow();
+			if classes.len() > 0 {
+				write!(buffer, " class=\"")?;
+				for class in classes.iter() {
+					write!(buffer, "{} ", class)?;
+				}
+				if let Some(class) = class {
+					write!(buffer, "{}", class)?;
+				}
+				write!(buffer, "\"")?;
+			}
+		}
+
+		{
+			let styles = self.style.borrow();
+			if styles.len() > 0 {
+				write!(buffer, " style=\"")?;
+				for (name, value) in styles.iter() {
+					write!(buffer, "{}:{};", name, value)?;
+				}
+				write!(buffer, "\"")?;
+			}
+		}
+
+		write!(buffer, ">")?;
+
 		let children = self.children.borrow();
 		for child in children.iter() {
 			match child {
@@ -90,7 +134,36 @@ impl<'a> StaticNode<'a> {
 	}
 }
 
-impl<'a> HtmlBackend for StaticHtml<'a> {}
+impl<'a> HtmlBackend for StaticHtml<'a> {
+	fn set_attribute(&self, node: &Self::Element, name: &str, value: &str) {
+		let name = self.bump.alloc_str(name);
+		let value = self.bump.alloc_str(value);
+		node.attr.borrow_mut().insert(name, value);
+	}
+
+	fn remove_attribute(&self, node: &Self::Element, name: &str) {
+		node.attr.borrow_mut().remove(name);
+	}
+
+	fn set_property(&self, node: &Self::Element, name: &str, value: &str) {
+		let name = self.bump.alloc_str(name);
+		let value = self.bump.alloc_str(value);
+		node.style.borrow_mut().insert(name, value);
+	}
+
+	fn remove_property(&self, node: &Self::Element, name: &str) {
+		node.style.borrow_mut().remove(name);
+	}
+
+	fn add_class(&self, node: &Self::Element, class: &str) {
+		let class = self.bump.alloc_str(class);
+		node.class.borrow_mut().insert(class);
+	}
+
+	fn remove_class(&self, node: &Self::Element, class: &str) {
+		node.class.borrow_mut().remove(class);
+	}
+}
 
 impl<'a> Backend for StaticHtml<'a> {
 	type Element = &'a StaticElement<'a>;

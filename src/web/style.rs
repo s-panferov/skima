@@ -1,16 +1,13 @@
-use wasm_bindgen::JsCast;
-use web_sys::HtmlElement;
-
-use super::{StringLike, WebSys};
+use super::StringLike;
 use crate::tree::Tree;
-use crate::Markup;
+use crate::{HtmlBackend, Markup};
 pub struct Property<S1: StringLike, S2: StringLike>(S1, S2);
 
 pub fn property<S1: StringLike, S2: StringLike>(prop: S1, value: S2) -> Property<S1, S2> {
 	Property(prop, value)
 }
 
-impl<S1: StringLike, S2: StringLike> Markup for Property<S1, S2> {
+impl<B: HtmlBackend, S1: StringLike, S2: StringLike> Markup<B> for Property<S1, S2> {
 	fn has_own_node() -> bool {
 		false
 	}
@@ -19,31 +16,24 @@ impl<S1: StringLike, S2: StringLike> Markup for Property<S1, S2> {
 		S1::DYNAMIC || S2::DYNAMIC
 	}
 
-	fn render(&self, tree: &Tree<WebSys>) {
-		tree.closest_node()
-			.unchecked_ref::<HtmlElement>()
-			.style()
-			.set_property(self.0.as_ref(), self.1.as_ref())
-			.unwrap();
+	fn render(&self, tree: &Tree<B>) {
+		let element = B::node_to_element(tree.closest_node()).unwrap();
+		tree.backend
+			.set_property(&element, self.0.as_ref(), self.1.as_ref());
 	}
 
-	fn diff(&self, prev: &Self, tree: &Tree<WebSys>) {
+	fn diff(&self, prev: &Self, tree: &Tree<B>) {
 		if prev.1.as_ref() != self.1.as_ref() {
-			tree.closest_node()
-				.unchecked_ref::<HtmlElement>()
-				.style()
-				.set_property(self.0.as_ref(), self.1.as_ref())
-				.unwrap();
+			let element = B::node_to_element(tree.closest_node()).unwrap();
+			tree.backend
+				.set_property(&element, self.0.as_ref(), self.1.as_ref());
 		}
 	}
 
-	fn drop(&self, tree: &Tree<WebSys>, should_unmount: bool) {
+	fn drop(&self, tree: &Tree<B>, should_unmount: bool) {
 		if should_unmount {
-			tree.closest_node()
-				.unchecked_ref::<HtmlElement>()
-				.style()
-				.remove_property(self.0.as_ref())
-				.unwrap();
+			let element = B::node_to_element(tree.closest_node()).unwrap();
+			tree.backend.remove_property(&element, self.0.as_ref());
 		}
 	}
 }

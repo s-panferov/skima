@@ -15,7 +15,8 @@ fn main() {
 	let bump = bumpalo::Bump::new();
 	let html = StaticHtml { bump: &bump };
 
-	let markup = div(div(div(test()))) as Tag<_, StaticHtml, 1>;
+	let markup =
+		div(div(div((classname("test"), property("display", "block"))))) as Tag<_, StaticHtml, 1>;
 	let tree = Tree::ephemeral_root(html);
 
 	markup.render(&tree);
@@ -26,6 +27,5 @@ fn main() {
 		.unwrap()
 		.to_html(&mut buffer)
 		.unwrap();
-
-	println!("{:#?}", buffer);
+	println!("{}", buffer);
 }

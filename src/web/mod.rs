@@ -44,7 +44,37 @@ pub type Target = WebSys;
 pub struct WebSys;
 impl WebSys {}
 
-impl HtmlBackend for WebSys {}
+impl HtmlBackend for WebSys {
+	fn set_attribute(&self, node: &Self::Element, name: &str, value: &str) {
+		node.set_attribute(name, value).unwrap()
+	}
+
+	fn remove_attribute(&self, node: &Self::Element, name: &str) {
+		node.remove_attribute(name).unwrap()
+	}
+
+	fn set_property(&self, node: &Self::Element, name: &str, value: &str) {
+		node.unchecked_ref::<web_sys::HtmlElement>()
+			.style()
+			.set_property(name, value)
+			.unwrap();
+	}
+
+	fn remove_property(&self, node: &Self::Element, name: &str) {
+		node.unchecked_ref::<web_sys::HtmlElement>()
+			.style()
+			.remove_property(name)
+			.unwrap();
+	}
+
+	fn add_class(&self, node: &Self::Element, class: &str) {
+		node.class_list().add_1(class).unwrap()
+	}
+
+	fn remove_class(&self, node: &Self::Element, class: &str) {
+		node.class_list().remove_1(class).unwrap();
+	}
+}
 
 impl Backend for WebSys {
 	type Text = web_sys::Text;

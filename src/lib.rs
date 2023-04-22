@@ -103,7 +103,14 @@ pub fn subtree<M: Markup<B>, B: Backend>(parent: &Tree<B>) -> Tree<B> {
 	}
 }
 
-pub trait HtmlBackend: Backend {}
+pub trait HtmlBackend: Backend {
+	fn set_attribute(&self, element: &Self::Element, name: &str, value: &str);
+	fn remove_attribute(&self, element: &Self::Element, name: &str);
+	fn set_property(&self, element: &Self::Element, name: &str, value: &str);
+	fn remove_property(&self, element: &Self::Element, name: &str);
+	fn add_class(&self, element: &Self::Element, class: &str);
+	fn remove_class(&self, element: &Self::Element, class: &str);
+}
 
 pub trait Backend: std::fmt::Debug + Clone {
 	type Element: std::fmt::Debug + Clone;
