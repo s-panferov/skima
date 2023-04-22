@@ -12,7 +12,7 @@ pub trait StringLike: AsRef<str> {
 	const DYNAMIC: bool;
 }
 
-impl StringLike for &'static str {
+impl<'a> StringLike for &'a str {
 	const DYNAMIC: bool = false;
 }
 

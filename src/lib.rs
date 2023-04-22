@@ -219,32 +219,6 @@ where
 	}
 }
 
-impl<BACKEND, T> Markup<BACKEND> for &'static T
-where
-	T: Markup<BACKEND>,
-	BACKEND: Backend,
-{
-	fn has_own_node() -> bool {
-		T::has_own_node()
-	}
-
-	fn dynamic() -> bool {
-		T::dynamic()
-	}
-
-	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
-		(**self).diff(prev, tree)
-	}
-
-	fn render(&self, tree: &Tree<BACKEND>) {
-		(**self).render(tree)
-	}
-
-	fn drop(&self, tree: &Tree<BACKEND>, should_unmount: bool) {
-		(**self).drop(tree, should_unmount)
-	}
-}
-
 impl<BACKEND, T> Markup<BACKEND> for Rc<T>
 where
 	T: Markup<BACKEND>,
@@ -281,6 +255,58 @@ where
 
 	fn dynamic() -> bool {
 		true
+	}
+
+	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
+		(**self).diff(prev, tree)
+	}
+
+	fn render(&self, tree: &Tree<BACKEND>) {
+		(**self).render(tree)
+	}
+
+	fn drop(&self, tree: &Tree<BACKEND>, should_unmount: bool) {
+		(**self).drop(tree, should_unmount)
+	}
+}
+
+impl<'a, T, BACKEND> Markup<BACKEND> for &'a T
+where
+	T: Markup<BACKEND>,
+	BACKEND: Backend,
+{
+	fn has_own_node() -> bool {
+		T::has_own_node()
+	}
+
+	fn dynamic() -> bool {
+		T::dynamic()
+	}
+
+	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
+		(**self).diff(prev, tree)
+	}
+
+	fn render(&self, tree: &Tree<BACKEND>) {
+		(**self).render(tree)
+	}
+
+	fn drop(&self, tree: &Tree<BACKEND>, should_unmount: bool) {
+		(**self).drop(tree, should_unmount)
+	}
+}
+
+impl<'a, T, BACKEND> Markup<BACKEND> for &'a mut T
+where
+	T: Markup<BACKEND>,
+	BACKEND: Backend,
+{
+	fn has_own_node() -> bool {
+		T::has_own_node()
+	}
+
+	fn dynamic() -> bool {
+		T::dynamic()
 	}
 
 	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {

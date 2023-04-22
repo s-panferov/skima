@@ -15,11 +15,13 @@ fn main() {
 	let bump = bumpalo::Bump::new();
 	let html = StaticHtml { bump: &bump };
 
-	let markup =
-		div(div(div((classname("test"), property("display", "block"))))) as Tag<_, StaticHtml, 1>;
+	let markup = bump.alloc_with(|| {
+		div(div(div((classname("test"), property("display", "block"))))) as Tag<_, StaticHtml, 1>
+	});
+
 	let tree = Tree::ephemeral_root(html);
 
-	markup.render(&tree);
+	div(markup).render(&tree);
 
 	let mut buffer = String::new();
 
@@ -27,5 +29,6 @@ fn main() {
 		.unwrap()
 		.to_html(&mut buffer)
 		.unwrap();
+
 	println!("{}", buffer);
 }
