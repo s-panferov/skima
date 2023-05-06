@@ -20,14 +20,22 @@ use syn_rsx::{parse, Node, NodeName};
 #[proc_macro]
 pub fn html(tokens: TokenStream) -> TokenStream {
 	match parse(tokens) {
-		Ok(nodes) => {
-			assert!(nodes.len() == 1, "A single node expected");
-			let node = nodes.into_iter().next().unwrap();
-			format_node(node)
-		}
+		Ok(nodes) => format_nodes(nodes),
 		Err(error) => error.to_compile_error(),
 	}
 	.into()
+}
+
+fn format_nodes(nodes: Vec<Node>) -> proc_macro2::TokenStream {
+	if nodes.len() == 1 {
+		let node = nodes.into_iter().next().unwrap();
+		format_node(node)
+	} else {
+		let nodes = nodes.into_iter().map(|node| format_node(node));
+		quote!((
+			#(#nodes),*
+		))
+	}
 }
 
 fn format_node(node: Node) -> proc_macro2::TokenStream {
@@ -87,6 +95,17 @@ fn format_node(node: Node) -> proc_macro2::TokenStream {
 		Node::Text(text) => {
 			let value = text.value.as_ref();
 			quote! { #value }
+		}
+		Node::Block(b) => {
+			let value = b.value.as_ref();
+			quote! { #value }
+		}
+		Node::Fragment(f) => format_nodes(f.children),
+		Node::Comment(_) => {
+			quote! {}
+		}
+		Node::Doctype(_) => {
+			quote! {}
 		}
 		_ => todo!(),
 	}
