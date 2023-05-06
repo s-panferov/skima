@@ -30,6 +30,7 @@ pub mod prelude {
 	pub use crate::web::html::*;
 	pub use crate::web::reactive::reactive;
 	pub use crate::web::style::property;
+	pub use crate::web::HtmlBackend;
 	pub use crate::{dynamic, Markup};
 }
 
