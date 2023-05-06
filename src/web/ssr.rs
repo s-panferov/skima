@@ -1,6 +1,8 @@
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 
+pub use bumpalo;
+
 use super::HtmlBackend;
 use crate::tree::Tree;
 use crate::{Backend, Markup};
@@ -61,7 +63,7 @@ impl<'a> StaticElement<'a> {
 
 		{
 			let classes = self.class.borrow();
-			if classes.len() > 0 {
+			if class.is_some() || classes.len() > 0 {
 				write!(buffer, " class=\"")?;
 				for class in classes.iter() {
 					write!(buffer, "{} ", class)?;
