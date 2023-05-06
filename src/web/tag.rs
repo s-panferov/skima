@@ -98,4 +98,9 @@ pub mod html {
 	define_tag!(li, 16);
 	define_tag!(video, 17);
 	define_tag!(source, 18);
+	define_tag!(html, 19);
+	define_tag!(head, 20);
+	define_tag!(script, 20);
+	define_tag!(link, 21);
+	define_tag!(body, 22);
 }
