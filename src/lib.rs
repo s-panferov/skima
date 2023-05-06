@@ -32,6 +32,7 @@ pub mod web;
 
 mod docs;
 
+pub use skima_rsx::html;
 pub use tap::tap;
 
 pub use crate::dynamic::dynamic;
