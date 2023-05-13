@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::marker::PhantomData;
 use std::rc::Rc;
 
 use super::Callback;
@@ -104,7 +105,7 @@ pub fn provide<T: Envelope + Clone + 'static>(value: T, markup: impl Markup) -> 
 pub struct Capture<M: Markup<B>, B: Backend> {
 	markup: M,
 	handler: ActionHandler,
-	_b: B::Phantom,
+	_b: PhantomData<B>,
 }
 
 pub fn capture(markup: impl Markup, handler: ActionHandler) -> impl Markup {

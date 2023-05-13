@@ -114,8 +114,6 @@ pub trait Backend: std::fmt::Debug + Clone {
 	type Event;
 	type Cursor;
 
-	type Phantom = PhantomData<Self>;
-
 	fn replace(node: &Self::Node, prev: &Self::Node);
 	fn insert(cursor: Self::Cursor, node: &Self::Node);
 	fn remove(node: &Self::Node);

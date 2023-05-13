@@ -133,8 +133,6 @@ impl Backend for WebSys {
 		element.unchecked_into()
 	}
 
-	type Phantom = std::marker::PhantomData<Self>;
-
 	fn node_to_element(node: Self::Node) -> Option<Self::Element> {
 		node.dyn_into::<Element>().ok()
 	}

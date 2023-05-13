@@ -243,8 +243,6 @@ impl<'a> Backend for StaticHtml<'a> {
 		}
 	}
 
-	type Phantom = std::marker::PhantomData<Self>;
-
 	fn set_text(&self, text: &Self::Text, data: &str) {
 		let data = self.bump.alloc_str(data);
 		text.text.replace(data);
