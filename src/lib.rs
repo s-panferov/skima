@@ -211,32 +211,6 @@ where
 	}
 }
 
-impl<BACKEND, T> Markup<BACKEND> for Rc<T>
-where
-	T: Markup<BACKEND>,
-	BACKEND: Backend,
-{
-	fn has_own_node() -> bool {
-		T::has_own_node()
-	}
-
-	fn dynamic() -> bool {
-		T::dynamic()
-	}
-
-	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
-		(**self).diff(prev, tree)
-	}
-
-	fn render(&self, tree: &Tree<BACKEND>) {
-		(**self).render(tree)
-	}
-
-	fn drop(&self, tree: &Tree<BACKEND>, should_unmount: bool) {
-		(**self).drop(tree, should_unmount)
-	}
-}
-
 impl<BACKEND> Markup<BACKEND> for Box<dyn AnyMarkup<BACKEND>>
 where
 	BACKEND: Backend + 'static,
@@ -314,27 +288,55 @@ where
 	}
 }
 
-impl<BACKEND> Markup<BACKEND> for Rc<dyn AnyMarkup<BACKEND>>
-where
-	BACKEND: Backend + 'static,
-{
-	fn has_own_node() -> bool {
-		true
-	}
+// Markup for Rc was disabled. See note `notes/2023-05-07-typeid.md`
+//
+// impl<BACKEND, T> Markup<BACKEND> for Rc<T>
+// where
+// 	T: Markup<BACKEND>,
+// 	BACKEND: Backend,
+// {
+// 	fn has_own_node() -> bool {
+// 		T::has_own_node()
+// 	}
 
-	fn dynamic() -> bool {
-		true
-	}
+// 	fn dynamic() -> bool {
+// 		T::dynamic()
+// 	}
 
-	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
-		(**self).diff(prev, tree)
-	}
+// 	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
+// 		(**self).diff(prev, tree)
+// 	}
 
-	fn render(&self, tree: &Tree<BACKEND>) {
-		(**self).render(tree)
-	}
+// 	fn render(&self, tree: &Tree<BACKEND>) {
+// 		(**self).render(tree)
+// 	}
 
-	fn drop(&self, tree: &Tree<BACKEND>, should_unmount: bool) {
-		(**self).drop(tree, should_unmount)
-	}
-}
+// 	fn drop(&self, tree: &Tree<BACKEND>, should_unmount: bool) {
+// 		(**self).drop(tree, should_unmount)
+// 	}
+// }
+
+// impl<BACKEND> Markup<BACKEND> for Rc<dyn AnyMarkup<BACKEND>>
+// where
+// 	BACKEND: Backend + 'static,
+// {
+// 	fn has_own_node() -> bool {
+// 		true
+// 	}
+
+// 	fn dynamic() -> bool {
+// 		true
+// 	}
+
+// 	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
+// 		(**self).diff(prev, tree)
+// 	}
+
+// 	fn render(&self, tree: &Tree<BACKEND>) {
+// 		(**self).render(tree)
+// 	}
+
+// 	fn drop(&self, tree: &Tree<BACKEND>, should_unmount: bool) {
+// 		(**self).drop(tree, should_unmount)
+// 	}
+// }

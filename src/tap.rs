@@ -1,12 +1,12 @@
-use std::any::TypeId;
+use std::cell::RefCell;
 use std::marker::PhantomData;
-use std::rc::Rc;
 
 use crate::tree::Tree;
 use crate::{Backend, Markup};
 
 pub struct WithTree<M: Markup<B>, B: Backend, F: Fn(&Tree<B>) -> M> {
 	func: F,
+	state: RefCell<Option<M>>,
 	_b: PhantomData<B>,
 }
 
@@ -18,15 +18,16 @@ where
 {
 	WithTree {
 		func,
+		state: RefCell::new(None),
 		_b: PhantomData,
 	}
 }
 
 impl<M, B, F> Markup<B> for WithTree<M, B, F>
 where
-	M: Markup<B> + 'static,
+	M: Markup<B>,
 	B: Backend,
-	F: Fn(&Tree<B>) -> M + 'static,
+	F: Fn(&Tree<B>) -> M,
 {
 	fn has_own_node() -> bool {
 		M::has_own_node()
@@ -35,27 +36,25 @@ where
 	fn render(&self, tree: &Tree<B>) {
 		let markup = (self.func)(tree);
 		markup.render(tree);
-		tree.data_mut()
-			.set_with_key::<Rc<M>>(fxhash::hash64(&TypeId::of::<F>()), Rc::new(markup));
+		self.state.replace(Some(markup));
 	}
 
 	fn diff(&self, _prev: &Self, tree: &Tree<B>) {
 		let markup = (self.func)(tree);
 
+		let mut prev_state = _prev.state.borrow_mut();
+		let prev = prev_state.as_mut().unwrap();
+
 		// TODO: get/set -> single op
-		let prev = tree
-			.data()
-			.get_with_key::<Rc<M>>(fxhash::hash64(&TypeId::of::<F>()));
 		markup.diff(&prev, tree);
-		tree.data_mut()
-			.set_with_key::<Rc<M>>(fxhash::hash64(&TypeId::of::<F>()), Rc::new(markup));
+		self.state.replace(Some(markup));
 	}
 
 	fn drop(&self, tree: &Tree<B>, should_unmount: bool) {
-		let markup = tree
-			.data()
-			.get_with_key::<Rc<M>>(fxhash::hash64(&TypeId::of::<F>()));
-
-		markup.drop(tree, should_unmount)
+		self.state
+			.borrow_mut()
+			.as_mut()
+			.unwrap()
+			.drop(tree, should_unmount)
 	}
 }

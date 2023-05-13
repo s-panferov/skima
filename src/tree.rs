@@ -401,8 +401,6 @@ impl Backend for Noop {
 
 	fn remove(node: &Self::Node) {}
 
-	type Phantom = std::marker::PhantomData<Self>;
-
 	fn text_to_node(text: Self::Text) -> Self::Node {
 		text
 	}

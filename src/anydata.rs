@@ -65,7 +65,12 @@ impl AnyData {
 
 	#[inline]
 	pub fn get_with_key<T: Envelope>(&self, key: u64) -> T::Output {
-		let data: Rc<dyn Any> = (*self.data.get(&key).as_ref().unwrap_or_else(|| { panic!("{}", type_name::<T>()) })).clone();
+		let data: Rc<dyn Any> = (*self
+			.data
+			.get(&key)
+			.as_ref()
+			.unwrap_or_else(|| panic!("{}", type_name::<T>())))
+		.clone();
 		T::from_dyn(data)
 	}
 
@@ -136,7 +141,7 @@ where
 	fn from_dyn(rc: Rc<dyn Any>) -> Self::Output {
 		T::try_from(rc)
 			.map_err(|_| ())
-			.unwrap_or_else(|_| { panic!("{}", std::any::type_name::<T>()) })
+			.unwrap_or_else(|_| panic!("{}", std::any::type_name::<T>()))
 	}
 
 	fn to_dyn(self) -> Rc<dyn Any> {

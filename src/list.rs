@@ -2,7 +2,6 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::marker::PhantomData;
-use std::rc::Rc;
 
 use indexmap::IndexMap;
 
@@ -10,9 +9,8 @@ use crate::iter::IteratorExt;
 use crate::tree::Tree;
 use crate::{Backend, Markup};
 
-pub struct ListData<K, M> {
-	prev_markup: RefCell<HashMap<K, M>>,
-	next_markup: RefCell<HashMap<K, M>>,
+struct ListData<K, M> {
+	item_markup: HashMap<K, M>,
 }
 
 pub struct List<K, T, F, M, B>
@@ -24,6 +22,7 @@ where
 {
 	data: IndexMap<K, T>,
 	func: F,
+	state: RefCell<ListData<K, M>>,
 	_b: PhantomData<B>,
 }
 
@@ -45,15 +44,18 @@ where
 	List {
 		data: set,
 		func,
+		state: RefCell::new(ListData {
+			item_markup: Default::default(),
+		}),
 		_b: PhantomData,
 	}
 }
 
 impl<K, T, F, M, B> Markup<B> for List<K, T, F, M, B>
 where
-	K: Eq + std::hash::Hash + Clone + Debug + 'static,
+	K: Eq + std::hash::Hash + Clone + Debug,
 	F: Fn(&T, &K) -> M,
-	M: Markup<B> + 'static,
+	M: Markup<B>,
 	B: Backend,
 {
 	fn has_own_node() -> bool {
@@ -61,28 +63,22 @@ where
 	}
 
 	fn render(&self, parent: &crate::tree::Tree<B>) {
-		let data = Rc::new(ListData {
-			prev_markup: Default::default(),
-			next_markup: Default::default(),
-		});
-
-		let mut prev_markup = data.prev_markup.borrow_mut();
+		let state = &mut self.state.borrow_mut();
 		for item in self.data.iter() {
 			let markup = (self.func)(item.1, item.0);
 			let tree = Tree::new(parent);
 			markup.render(&tree);
-			prev_markup.insert(item.0.clone(), markup);
+			state.item_markup.insert(item.0.clone(), markup);
 		}
-
-		std::mem::drop(prev_markup);
-		parent.data_mut().set(data);
 	}
 
 	// TODO: do we need to implement key-based moves?
 	fn diff(&self, prev: &Self, tree: &crate::tree::Tree<B>) {
-		let data = tree.data().get::<Rc<ListData<K, M>>>();
-		let mut prev_markup = data.prev_markup.borrow_mut();
-		let mut next_markup = data.next_markup.borrow_mut();
+		let mut prev_state = prev.state.borrow_mut();
+		let mut next_state = self.state.borrow_mut();
+
+		let prev_markup = &mut prev_state.item_markup;
+		let next_markup = &mut next_state.item_markup;
 
 		let mut next_iter = self.data.iter().de_peekable();
 		let mut prev_iter = prev.data.iter().de_peekable();
@@ -143,9 +139,6 @@ where
 				next_range.start += 1;
 			}
 
-			prev_markup.clear();
-			std::mem::swap(&mut *prev_markup, &mut *next_markup);
-
 			return;
 		} else if next_iter.peek().is_none() {
 			// We only have old items, we need to remove them
@@ -161,8 +154,6 @@ where
 				tree.remove_at(prev_range.start);
 			}
 
-			prev_markup.clear();
-			std::mem::swap(&mut *prev_markup, &mut *next_markup);
 			return;
 		}
 
@@ -206,14 +197,11 @@ where
 			next_range.start += 1;
 			// INSERTS
 		}
-
-		prev_markup.clear();
-		std::mem::swap(&mut *prev_markup, &mut *next_markup);
 	}
 
 	fn drop(&self, tree: &Tree<B>, should_unmount: bool) {
-		let data = tree.data_mut().remove::<Rc<ListData<K, M>>>();
-		let rendered = data.prev_markup.borrow_mut();
+		let mut state = self.state.borrow_mut();
+		let rendered = &mut state.item_markup;
 
 		let mut cursor = None;
 		for (i, key) in self.data.keys().enumerate() {
