@@ -9,7 +9,6 @@
 #![feature(coerce_unsized, unsize)]
 
 use std::marker::PhantomData;
-use std::rc::Rc;
 
 use downcast_rs::Downcast;
 use tree::Tree;
@@ -46,15 +45,15 @@ pub trait Markup<B: Backend = web::WebSys> {
 		true
 	}
 
-	fn render(&self, tree: &Tree<B>);
-	fn diff(&self, prev: &Self, tree: &Tree<B>);
-	fn drop(&self, tree: &Tree<B>, should_unmount: bool);
+	fn render(&mut self, tree: &Tree<B>);
+	fn diff(&mut self, prev: &mut Self, tree: &Tree<B>);
+	fn drop(&mut self, tree: &Tree<B>, should_unmount: bool);
 }
 
 pub trait AnyMarkup<B: Backend = web::WebSys>: Downcast {
-	fn render(&self, tree: &Tree<B>);
-	fn diff(&self, prev: &dyn AnyMarkup<B>, tree: &Tree<B>);
-	fn drop(&self, tree: &Tree<B>, should_unmount: bool);
+	fn render(&mut self, tree: &Tree<B>);
+	fn diff(&mut self, prev: &mut dyn AnyMarkup<B>, tree: &Tree<B>);
+	fn drop(&mut self, tree: &Tree<B>, should_unmount: bool);
 }
 
 impl<B, T> AnyMarkup<B> for T
@@ -62,20 +61,20 @@ where
 	T: Markup<B> + 'static,
 	B: Backend + 'static,
 {
-	fn render(&self, tree: &Tree<B>) {
+	fn render(&mut self, tree: &Tree<B>) {
 		Markup::render(self, tree)
 	}
 
-	fn diff(&self, prev: &dyn AnyMarkup<B>, tree: &Tree<B>) {
+	fn diff(&mut self, prev: &mut dyn AnyMarkup<B>, tree: &Tree<B>) {
 		Markup::diff(
 			self,
-			prev.downcast_ref::<T>()
+			prev.downcast_mut::<T>()
 				.unwrap_or_else(|| panic!("{}", std::any::type_name::<T>())),
 			tree,
 		)
 	}
 
-	fn drop(&self, tree: &Tree<B>, should_unmount: bool) {
+	fn drop(&mut self, tree: &Tree<B>, should_unmount: bool) {
 		Markup::drop(self, tree, should_unmount)
 	}
 }
@@ -88,7 +87,7 @@ pub struct Context<M: Markup<B>, B: Backend> {
 }
 
 #[inline]
-pub fn render_subtree<M: Markup<B>, B: Backend>(markup: &M, parent: &Tree<B>) {
+pub fn render_subtree<M: Markup<B>, B: Backend>(markup: &mut M, parent: &Tree<B>) {
 	if M::has_own_node() {
 		let subtree = Tree::new(parent);
 		markup.render(&subtree)
@@ -134,9 +133,9 @@ pub trait Backend: std::fmt::Debug + Clone {
 }
 
 impl<B: Backend> Markup<B> for () {
-	fn render(&self, _tree: &Tree<B>) {}
-	fn diff(&self, _prev: &Self, _tree: &Tree<B>) {}
-	fn drop(&self, _ree: &Tree<B>, _should_unmount: bool) {}
+	fn render(&mut self, _tree: &Tree<B>) {}
+	fn diff(&mut self, _prev: &mut Self, _tree: &Tree<B>) {}
+	fn drop(&mut self, _ree: &Tree<B>, _should_unmount: bool) {}
 }
 
 impl<M: Markup<B>, B: Backend> Context<M, B> {
@@ -158,13 +157,13 @@ where
 		true
 	}
 
-	fn render(&self, tree: &Tree<B>) {
-		if let Some(markup) = self.as_ref() {
+	fn render(&mut self, tree: &Tree<B>) {
+		if let Some(markup) = self.as_mut() {
 			markup.render(tree)
 		}
 	}
 
-	fn diff(&self, prev: &Self, tree: &Tree<B>) {
+	fn diff(&mut self, prev: &mut Self, tree: &Tree<B>) {
 		match (self, prev) {
 			(Some(next), None) => next.render(tree),
 			(Some(next), Some(prev)) => {
@@ -177,7 +176,7 @@ where
 		}
 	}
 
-	fn drop(&self, tree: &Tree<B>, should_unmount: bool) {
+	fn drop(&mut self, tree: &Tree<B>, should_unmount: bool) {
 		match self {
 			Some(markup) => markup.drop(tree, should_unmount),
 			None => {}
@@ -198,15 +197,15 @@ where
 		T::dynamic()
 	}
 
-	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
+	fn diff(&mut self, prev: &mut Self, tree: &Tree<BACKEND>) {
 		(**self).diff(prev, tree)
 	}
 
-	fn render(&self, tree: &Tree<BACKEND>) {
+	fn render(&mut self, tree: &Tree<BACKEND>) {
 		(**self).render(tree)
 	}
 
-	fn drop(&self, tree: &Tree<BACKEND>, should_unmount: bool) {
+	fn drop(&mut self, tree: &Tree<BACKEND>, should_unmount: bool) {
 		(**self).drop(tree, should_unmount)
 	}
 }
@@ -223,44 +222,44 @@ where
 		true
 	}
 
-	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
+	fn diff(&mut self, prev: &mut Self, tree: &Tree<BACKEND>) {
 		(**self).diff(prev, tree)
 	}
 
-	fn render(&self, tree: &Tree<BACKEND>) {
+	fn render(&mut self, tree: &Tree<BACKEND>) {
 		(**self).render(tree)
 	}
 
-	fn drop(&self, tree: &Tree<BACKEND>, should_unmount: bool) {
+	fn drop(&mut self, tree: &Tree<BACKEND>, should_unmount: bool) {
 		(**self).drop(tree, should_unmount)
 	}
 }
 
-impl<'a, T, BACKEND> Markup<BACKEND> for &'a T
-where
-	T: Markup<BACKEND>,
-	BACKEND: Backend,
-{
-	fn has_own_node() -> bool {
-		T::has_own_node()
-	}
+// impl<'a, T, BACKEND> Markup<BACKEND> for &'a T
+// where
+// 	T: Markup<BACKEND>,
+// 	BACKEND: Backend,
+// {
+// 	fn has_own_node() -> bool {
+// 		T::has_own_node()
+// 	}
 
-	fn dynamic() -> bool {
-		T::dynamic()
-	}
+// 	fn dynamic() -> bool {
+// 		T::dynamic()
+// 	}
 
-	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
-		(**self).diff(prev, tree)
-	}
+// 	fn diff(&mut self, prev: &mut Self, tree: &Tree<BACKEND>) {
+// 		(**self).diff(prev, tree)
+// 	}
 
-	fn render(&self, tree: &Tree<BACKEND>) {
-		(**self).render(tree)
-	}
+// 	fn render(&mut self, tree: &Tree<BACKEND>) {
+// 		(**self).render(tree)
+// 	}
 
-	fn drop(&self, tree: &Tree<BACKEND>, should_unmount: bool) {
-		(**self).drop(tree, should_unmount)
-	}
-}
+// 	fn drop(&mut self, tree: &Tree<BACKEND>, should_unmount: bool) {
+// 		(**self).drop(tree, should_unmount)
+// 	}
+// }
 
 impl<'a, T, BACKEND> Markup<BACKEND> for &'a mut T
 where
@@ -275,15 +274,15 @@ where
 		T::dynamic()
 	}
 
-	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
+	fn diff(&mut self, prev: &mut Self, tree: &Tree<BACKEND>) {
 		(**self).diff(prev, tree)
 	}
 
-	fn render(&self, tree: &Tree<BACKEND>) {
+	fn render(&mut self, tree: &Tree<BACKEND>) {
 		(**self).render(tree)
 	}
 
-	fn drop(&self, tree: &Tree<BACKEND>, should_unmount: bool) {
+	fn drop(&mut self, tree: &Tree<BACKEND>, should_unmount: bool) {
 		(**self).drop(tree, should_unmount)
 	}
 }
@@ -303,15 +302,15 @@ where
 // 		T::dynamic()
 // 	}
 
-// 	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
+// 	fn diff(&mut self, prev: &mut Self, tree: &Tree<BACKEND>) {
 // 		(**self).diff(prev, tree)
 // 	}
 
-// 	fn render(&self, tree: &Tree<BACKEND>) {
+// 	fn render(&mut self, tree: &Tree<BACKEND>) {
 // 		(**self).render(tree)
 // 	}
 
-// 	fn drop(&self, tree: &Tree<BACKEND>, should_unmount: bool) {
+// 	fn drop(&mut self, tree: &Tree<BACKEND>, should_unmount: bool) {
 // 		(**self).drop(tree, should_unmount)
 // 	}
 // }
@@ -328,15 +327,15 @@ where
 // 		true
 // 	}
 
-// 	fn diff(&self, prev: &Self, tree: &Tree<BACKEND>) {
+// 	fn diff(&mut self, prev: &mut Self, tree: &Tree<BACKEND>) {
 // 		(**self).diff(prev, tree)
 // 	}
 
-// 	fn render(&self, tree: &Tree<BACKEND>) {
+// 	fn render(&mut self, tree: &Tree<BACKEND>) {
 // 		(**self).render(tree)
 // 	}
 
-// 	fn drop(&self, tree: &Tree<BACKEND>, should_unmount: bool) {
+// 	fn drop(&mut self, tree: &Tree<BACKEND>, should_unmount: bool) {
 // 		(**self).drop(tree, should_unmount)
 // 	}
 // }

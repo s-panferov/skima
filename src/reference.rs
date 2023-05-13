@@ -61,12 +61,12 @@ pub struct Refr<B: Backend, F: Fn(Option<B::Node>)> {
 }
 
 impl<B: Backend, F: Fn(Option<B::Node>)> Markup<B> for Refr<B, F> {
-	fn render(&self, tree: &crate::tree::Tree<B>) {
+	fn render(&mut self, tree: &crate::tree::Tree<B>) {
 		let tree = tree.closest_node();
 		(self.func)(Some(tree));
 	}
-	fn diff(&self, _prev: &Self, _tree: &crate::tree::Tree<B>) {}
-	fn drop(&self, _tree: &crate::tree::Tree<B>, _should_unmount: bool) {
+	fn diff(&mut self, _prev: &mut Self, _tree: &crate::tree::Tree<B>) {}
+	fn drop(&mut self, _tree: &crate::tree::Tree<B>, _should_unmount: bool) {
 		(self.func)(None);
 	}
 }

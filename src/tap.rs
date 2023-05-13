@@ -33,24 +33,24 @@ where
 		M::has_own_node()
 	}
 
-	fn render(&self, tree: &Tree<B>) {
-		let markup = (self.func)(tree);
+	fn render(&mut self, tree: &Tree<B>) {
+		let mut markup = (self.func)(tree);
 		markup.render(tree);
 		self.state.replace(Some(markup));
 	}
 
-	fn diff(&self, _prev: &Self, tree: &Tree<B>) {
-		let markup = (self.func)(tree);
+	fn diff(&mut self, _prev: &mut Self, tree: &Tree<B>) {
+		let mut markup = (self.func)(tree);
 
 		let mut prev_state = _prev.state.borrow_mut();
 		let prev = prev_state.as_mut().unwrap();
 
 		// TODO: get/set -> single op
-		markup.diff(&prev, tree);
+		markup.diff(prev, tree);
 		self.state.replace(Some(markup));
 	}
 
-	fn drop(&self, tree: &Tree<B>, should_unmount: bool) {
+	fn drop(&mut self, tree: &Tree<B>, should_unmount: bool) {
 		self.state
 			.borrow_mut()
 			.as_mut()

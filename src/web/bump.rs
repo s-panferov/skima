@@ -22,15 +22,15 @@ where
 	M: Markup<B>,
 	B: Backend,
 {
-	fn render(&self, _tree: &Tree<B>) {
+	fn render(&mut self, _tree: &Tree<B>) {
 		todo!()
 	}
 
-	fn diff(&self, _prev: &Self, _tree: &Tree<B>) {
+	fn diff(&mut self, _prev: &mut Self, _tree: &Tree<B>) {
 		todo!()
 	}
 
-	fn drop(&self, _tree: &Tree<B>, _should_unmount: bool) {
+	fn drop(&mut self, _tree: &Tree<B>, _should_unmount: bool) {
 		todo!()
 	}
 }
@@ -72,15 +72,15 @@ where
 	M: Markup<B>,
 	B: Backend,
 {
-	fn render(&self, _tree: &Tree<B>) {
+	fn render(&mut self, _tree: &Tree<B>) {
 		todo!()
 	}
 
-	fn diff(&self, _prev: &Self, _tree: &Tree<B>) {
+	fn diff(&mut self, _prev: &mut Self, _tree: &Tree<B>) {
 		todo!()
 	}
 
-	fn drop(&self, _tree: &Tree<B>, _should_unmount: bool) {
+	fn drop(&mut self, _tree: &Tree<B>, _should_unmount: bool) {
 		todo!()
 	}
 }

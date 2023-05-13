@@ -20,7 +20,7 @@ impl Markup for History {
 		false
 	}
 
-	fn render(&self, tree: &crate::tree::Tree<WebSys>) {
+	fn render(&mut self, tree: &crate::tree::Tree<WebSys>) {
 		let callback: Closure<dyn Fn(web_sys::Event)> = Closure::new({
 			let tree = tree.clone();
 			move |event: web_sys::Event| {
@@ -48,11 +48,11 @@ impl Markup for History {
 		tree.data_mut().set(Rc::new(HistoryEvent(callback)));
 	}
 
-	fn diff(&self, _prev: &Self, _tree: &crate::tree::Tree<WebSys>) {
+	fn diff(&mut self, _prev: &mut Self, _tree: &crate::tree::Tree<WebSys>) {
 		// None
 	}
 
-	fn drop(&self, tree: &crate::tree::Tree<WebSys>, _should_unmount: bool) {
+	fn drop(&mut self, tree: &crate::tree::Tree<WebSys>, _should_unmount: bool) {
 		let event = tree.data_mut().remove::<Rc<HistoryEvent>>();
 		tree.closest_node()
 			.remove_event_listener_with_callback("click", event.0.as_ref().unchecked_ref())

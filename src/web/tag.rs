@@ -24,16 +24,16 @@ where
 		M::dynamic()
 	}
 
-	fn render(&self, tree: &Tree<B>) {
+	fn render(&mut self, tree: &Tree<B>) {
 		tracing::debug!("Rendering tag {}", self.tag);
 
 		let node = B::element_to_node(tree.backend.create_element(self.tag));
 		let prev = tree.set_node(node);
-		render_subtree(&self.markup, tree);
+		render_subtree(&mut self.markup, tree);
 		tree.attach(prev);
 	}
 
-	fn diff(&self, prev: &Self, tree: &Tree<B>) {
+	fn diff(&mut self, prev: &mut Self, tree: &Tree<B>) {
 		if prev.tag != self.tag {
 			// re-render
 			let element = B::element_to_node(tree.backend.create_element(self.tag));
@@ -41,14 +41,14 @@ where
 			let prev = tree.set_node(element.into());
 			tree.clear();
 
-			render_subtree(&self.markup, tree);
+			render_subtree(&mut self.markup, tree);
 			tree.attach(prev)
 		} else if M::dynamic() {
-			self.markup.diff(&prev.markup, &subtree::<M, _>(tree));
+			self.markup.diff(&mut prev.markup, &subtree::<M, _>(tree));
 		}
 	}
 
-	fn drop(&self, tree: &Tree<B>, should_unmount: bool) {
+	fn drop(&mut self, tree: &Tree<B>, should_unmount: bool) {
 		tracing::debug!("Undo tag");
 		if M::has_own_node() {
 			self.markup.drop(&tree.first_child(), false);

@@ -80,16 +80,16 @@ impl<T: Envelope + Clone + 'static, M: Markup<WebSys>> Markup<WebSys> for Provid
 		M::has_own_node()
 	}
 
-	fn render(&self, tree: &crate::tree::Tree<WebSys>) {
+	fn render(&mut self, tree: &crate::tree::Tree<WebSys>) {
 		tree.data_mut().set(self.data.clone());
 		self.markup.render(tree);
 	}
 
-	fn diff(&self, prev: &Self, tree: &crate::tree::Tree<WebSys>) {
-		self.markup.diff(&prev.markup, tree);
+	fn diff(&mut self, prev: &mut Self, tree: &crate::tree::Tree<WebSys>) {
+		self.markup.diff(&mut prev.markup, tree);
 	}
 
-	fn drop(&self, tree: &crate::tree::Tree<WebSys>, should_unmount: bool) {
+	fn drop(&mut self, tree: &crate::tree::Tree<WebSys>, should_unmount: bool) {
 		tree.data_mut().remove::<T>();
 		self.markup.drop(tree, should_unmount)
 	}
@@ -121,7 +121,7 @@ impl<M: Markup<B>, B: Backend> Markup<B> for Capture<M, B> {
 		M::has_own_node()
 	}
 
-	fn render(&self, tree: &Tree<B>) {
+	fn render(&mut self, tree: &Tree<B>) {
 		tree.capture
 			.borrow_mut()
 			.insert(fxhash::hash64(&self.handler), self.handler.clone());
@@ -129,11 +129,11 @@ impl<M: Markup<B>, B: Backend> Markup<B> for Capture<M, B> {
 		self.markup.render(tree);
 	}
 
-	fn diff(&self, prev: &Self, tree: &Tree<B>) {
-		self.markup.diff(&prev.markup, tree);
+	fn diff(&mut self, prev: &mut Self, tree: &Tree<B>) {
+		self.markup.diff(&mut prev.markup, tree);
 	}
 
-	fn drop(&self, tree: &Tree<B>, should_unmount: bool) {
+	fn drop(&mut self, tree: &Tree<B>, should_unmount: bool) {
 		tree.capture
 			.borrow_mut()
 			.remove(&fxhash::hash64(&self.handler));

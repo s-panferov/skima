@@ -62,10 +62,10 @@ where
 		true
 	}
 
-	fn render(&self, parent: &crate::tree::Tree<B>) {
+	fn render(&mut self, parent: &crate::tree::Tree<B>) {
 		let state = &mut self.state.borrow_mut();
 		for item in self.data.iter() {
-			let markup = (self.func)(item.1, item.0);
+			let mut markup = (self.func)(item.1, item.0);
 			let tree = Tree::new(parent);
 			markup.render(&tree);
 			state.item_markup.insert(item.0.clone(), markup);
@@ -73,7 +73,7 @@ where
 	}
 
 	// TODO: do we need to implement key-based moves?
-	fn diff(&self, prev: &Self, tree: &crate::tree::Tree<B>) {
+	fn diff(&mut self, prev: &mut Self, tree: &crate::tree::Tree<B>) {
 		let mut prev_state = prev.state.borrow_mut();
 		let mut next_state = self.state.borrow_mut();
 
@@ -96,8 +96,8 @@ where
 			let next_item = next_iter.next().unwrap();
 			let tree = tree.child_at(prev_range.start);
 
-			let prev_m = prev_markup.get(prev_item.0).unwrap();
-			let next_m = (self.func)(next_item.1, next_item.0);
+			let prev_m = prev_markup.get_mut(prev_item.0).unwrap();
+			let mut next_m = (self.func)(next_item.1, next_item.0);
 
 			next_m.diff(prev_m, &tree);
 
@@ -118,8 +118,8 @@ where
 
 			let tree = tree.child_at(prev_range.start);
 
-			let prev_m = prev_markup.get(prev_item.0).unwrap();
-			let next_m = (self.func)(next_item.1, next_item.0);
+			let prev_m = prev_markup.get_mut(prev_item.0).unwrap();
+			let mut next_m = (self.func)(next_item.1, next_item.0);
 
 			next_m.diff(prev_m, &tree);
 
@@ -133,7 +133,7 @@ where
 			// We only have new items, we need to add them
 			for node in next_iter {
 				let subtree = tree.insert_at(next_range.start);
-				let markup = (self.func)(node.1, node.0);
+				let mut markup = (self.func)(node.1, node.0);
 				markup.render(&subtree);
 				next_markup.insert(node.0.clone(), markup);
 				next_range.start += 1;
@@ -145,7 +145,7 @@ where
 			for prev_item in prev_iter {
 				let subtree = tree.child_at(prev_range.start);
 
-				let prev_m = prev_markup.get(prev_item.0).unwrap();
+				let prev_m = prev_markup.get_mut(prev_item.0).unwrap();
 
 				prev_m.drop(&subtree, true);
 				subtree.disconnect(true);
@@ -162,7 +162,7 @@ where
 				None => {
 					let subtree = tree.child_at(prev_range.start);
 
-					let prev_m = prev_markup.get(prev_item.0).unwrap();
+					let prev_m = prev_markup.get_mut(prev_item.0).unwrap();
 
 					prev_m.drop(&subtree, true);
 					subtree.disconnect(true);
@@ -173,8 +173,8 @@ where
 				Some(next_item) => {
 					let tree = tree.child_at(prev_range.start);
 
-					let prev_m = prev_markup.get(prev_item.0).unwrap();
-					let next_m = (self.func)(next_item.1, next_item.0);
+					let prev_m = prev_markup.get_mut(prev_item.0).unwrap();
+					let mut next_m = (self.func)(next_item.1, next_item.0);
 
 					next_m.diff(prev_m, &tree);
 
@@ -188,7 +188,7 @@ where
 
 		for next_item in next_iter {
 			let subtree = tree.insert_at(next_range.start);
-			let markup = (self.func)(next_item.1, next_item.0);
+			let mut markup = (self.func)(next_item.1, next_item.0);
 			markup.render(&subtree);
 
 			next_markup.insert(next_item.0.clone(), markup);
@@ -199,7 +199,7 @@ where
 		}
 	}
 
-	fn drop(&self, tree: &Tree<B>, should_unmount: bool) {
+	fn drop(&mut self, tree: &Tree<B>, should_unmount: bool) {
 		let mut state = self.state.borrow_mut();
 		let rendered = &mut state.item_markup;
 
@@ -211,7 +211,7 @@ where
 				cursor = Some(cursor.unwrap().next());
 			}
 
-			let markup = rendered.get(key).unwrap();
+			let markup = rendered.get_mut(key).unwrap();
 			markup.drop(cursor.as_ref().unwrap(), should_unmount);
 		}
 

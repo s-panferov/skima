@@ -16,13 +16,13 @@ impl<B: HtmlBackend, S1: StringLike, S2: StringLike> Markup<B> for Property<S1, 
 		S1::DYNAMIC || S2::DYNAMIC
 	}
 
-	fn render(&self, tree: &Tree<B>) {
+	fn render(&mut self, tree: &Tree<B>) {
 		let element = B::node_to_element(tree.closest_node()).unwrap();
 		tree.backend
 			.set_property(&element, self.0.as_ref(), self.1.as_ref());
 	}
 
-	fn diff(&self, prev: &Self, tree: &Tree<B>) {
+	fn diff(&mut self, prev: &mut Self, tree: &Tree<B>) {
 		if prev.1.as_ref() != self.1.as_ref() {
 			let element = B::node_to_element(tree.closest_node()).unwrap();
 			tree.backend
@@ -30,7 +30,7 @@ impl<B: HtmlBackend, S1: StringLike, S2: StringLike> Markup<B> for Property<S1, 
 		}
 	}
 
-	fn drop(&self, tree: &Tree<B>, should_unmount: bool) {
+	fn drop(&mut self, tree: &Tree<B>, should_unmount: bool) {
 		if should_unmount {
 			let element = B::node_to_element(tree.closest_node()).unwrap();
 			tree.backend.remove_property(&element, self.0.as_ref());

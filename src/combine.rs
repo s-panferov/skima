@@ -15,14 +15,14 @@ where
 		T1::dynamic() || T2::dynamic()
 	}
 
-	fn render(&self, tree: &crate::tree::Tree<B>) {
+	fn render(&mut self, tree: &crate::tree::Tree<B>) {
 		match self {
 			Either::A(a) => a.render(tree),
 			Either::B(b) => b.render(tree),
 		}
 	}
 
-	fn diff(&self, prev: &Self, tree: &crate::tree::Tree<B>) {
+	fn diff(&mut self, prev: &mut Self, tree: &crate::tree::Tree<B>) {
 		match (self, prev) {
 			(Either::A(next), Either::A(prev)) => {
 				if T1::dynamic() {
@@ -46,7 +46,7 @@ where
 		}
 	}
 
-	fn drop(&self, tree: &crate::tree::Tree<B>, should_unmount: bool) {
+	fn drop(&mut self, tree: &crate::tree::Tree<B>, should_unmount: bool) {
 		match self {
 			Either::A(a) => a.drop(tree, should_unmount),
 			Either::B(b) => b.drop(tree, should_unmount),

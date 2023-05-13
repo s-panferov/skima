@@ -21,7 +21,7 @@ pub trait Component<B: Backend = WebSys>: Sized {
 		}
 	}
 
-	fn render(&self, state: &mut Self::State) -> Self::Markup;
+	fn render(&mut self, state: &mut Self::State) -> Self::Markup;
 }
 
 pub struct ComponentMarkup<B: Backend, C: Component<B>> {
@@ -43,9 +43,9 @@ where
 		true
 	}
 
-	fn render(&self, tree: &crate::tree::Tree<B>) {
+	fn render(&mut self, tree: &crate::tree::Tree<B>) {
 		let mut state = self.component.create();
-		let markup = self.component.render(&mut state);
+		let mut markup = self.component.render(&mut state);
 		markup.render(tree);
 		tree.data_mut().set(Rc::new(ComponentTreeStorage::<B, C> {
 			markup: RefCell::new(markup),
@@ -53,17 +53,17 @@ where
 		}));
 	}
 
-	fn diff(&self, prev: &Self, tree: &crate::tree::Tree<B>) {
+	fn diff(&mut self, prev: &mut Self, tree: &crate::tree::Tree<B>) {
 		let storage = tree.data_mut().get::<Rc<ComponentTreeStorage<B, C>>>();
 		let state = &mut storage.state.borrow_mut();
 		C::update(&prev.component, &self.component, &mut *state);
 
-		let markup = C::render(&self.component, &mut *state);
-		markup.diff(&storage.markup.borrow_mut(), tree);
+		let mut markup = C::render(&mut self.component, &mut *state);
+		markup.diff(&mut storage.markup.borrow_mut(), tree);
 		storage.markup.replace(markup);
 	}
 
-	fn drop(&self, tree: &crate::tree::Tree<B>, should_unmount: bool) {
+	fn drop(&mut self, tree: &crate::tree::Tree<B>, should_unmount: bool) {
 		let storage = tree.data_mut().remove::<Rc<ComponentTreeStorage<B, C>>>();
 		storage.markup.borrow_mut().drop(tree, should_unmount);
 	}

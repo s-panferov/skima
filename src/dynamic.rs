@@ -24,15 +24,15 @@ impl<M: Markup<B>, B: Backend> Markup<B> for Dynamic<M, B> {
 		true
 	}
 
-	fn render(&self, tree: &Tree<B>) {
+	fn render(&mut self, tree: &Tree<B>) {
 		self.markup.render(tree);
 	}
 
-	fn diff(&self, prev: &Self, tree: &Tree<B>) {
-		self.markup.diff(&prev.markup, tree)
+	fn diff(&mut self, prev: &mut Self, tree: &Tree<B>) {
+		self.markup.diff(&mut prev.markup, tree)
 	}
 
-	fn drop(&self, tree: &Tree<B>, should_unmount: bool) {
+	fn drop(&mut self, tree: &Tree<B>, should_unmount: bool) {
 		self.markup.drop(tree, should_unmount)
 	}
 }

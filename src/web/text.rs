@@ -13,7 +13,7 @@ pub macro impl_string($ty:ty $(, $a:lifetime )?) {
 			true
 		}
 
-		fn render(&self, tree: &Tree<B>) {
+		fn render(&mut self, tree: &Tree<B>) {
 			tracing::debug!("Rendering text {}", self);
 
 			let text = tree.backend.create_text(self.as_ref());
@@ -21,7 +21,7 @@ pub macro impl_string($ty:ty $(, $a:lifetime )?) {
 			tree.attach(prev);
 		}
 
-		fn diff(&self, prev: &Self, tree: &Tree<B>) {
+		fn diff(&mut self, prev: &mut Self, tree: &Tree<B>) {
 			tracing::debug!("Diffing text {}", self);
 
 			if prev != self {
@@ -30,7 +30,7 @@ pub macro impl_string($ty:ty $(, $a:lifetime )?) {
 			}
 		}
 
-		fn drop(&self, tree: &Tree<B>, should_unmount: bool) {
+		fn drop(&mut self, tree: &Tree<B>, should_unmount: bool) {
 			if !should_unmount {
 				return;
 			}

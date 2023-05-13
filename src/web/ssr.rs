@@ -268,7 +268,7 @@ fn find_index<'a>(parent: &'a StaticElement<'a>, node: StaticNode<'a>) -> usize 
 		.0
 }
 
-pub fn render<'a, M: Markup<StaticHtml<'a>>>(backend: StaticHtml<'a>, markup: M) -> String {
+pub fn render<'a, M: Markup<StaticHtml<'a>>>(backend: StaticHtml<'a>, mut markup: M) -> String {
 	let tree = Tree::ephemeral_root(backend);
 
 	markup.render(&tree);

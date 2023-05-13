@@ -538,7 +538,7 @@ where
 
 		component.context.reset_effects_alive();
 
-		let next_markup = (component.factory)(&mut component.context);
+		let mut next_markup = (component.factory)(&mut component.context);
 
 		self.state.set(State::Valid);
 
@@ -555,7 +555,7 @@ where
 		}
 
 		if M::dynamic() {
-			next_markup.diff(&component.markup, &component.context.tree);
+			next_markup.diff(&mut component.markup, &component.context.tree);
 		}
 
 		component.markup = next_markup;
@@ -633,7 +633,7 @@ where
 		true
 	}
 
-	fn render(&self, tree: &Tree<B>) {
+	fn render(&mut self, tree: &Tree<B>) {
 		let component = Rc::new_cyclic(|this: &Weak<ReactiveComponent<F, M, B, E>>| {
 			let mut context = ReactiveContext {
 				renderable: this.clone() as Weak<dyn Renderable<B, E>>,
@@ -649,7 +649,7 @@ where
 					.replace(Evaluation::new(this.clone()));
 			}
 
-			let markup = (self.factory)(&mut context);
+			let mut markup = (self.factory)(&mut context);
 
 			if let Some(with_arena @ WithArena { .. }) = context.try_extension_mut() {
 				std::mem::swap(&mut with_arena.arena, &mut with_arena.arena_prev);
@@ -691,7 +691,7 @@ where
 		tree.data_mut().set(component);
 	}
 
-	fn diff(&self, _prev: &Self, tree: &Tree<B>) {
+	fn diff(&mut self, _prev: &mut Self, tree: &Tree<B>) {
 		let component = tree.data().get::<Rc<ReactiveComponent<F, M, B, E>>>();
 
 		{
@@ -704,12 +704,12 @@ where
 		component.update();
 	}
 
-	fn drop(&self, tree: &Tree<B>, should_unmount: bool) {
+	fn drop(&mut self, tree: &Tree<B>, should_unmount: bool) {
 		let component = tree
 			.data_mut()
 			.remove::<Rc<ReactiveComponent<F, M, B, E>>>();
 
-		let inner = component.inner.borrow_mut();
+		let mut inner = component.inner.borrow_mut();
 		inner.markup.drop(tree, should_unmount);
 		std::mem::drop(inner);
 

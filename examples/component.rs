@@ -21,7 +21,7 @@ impl Component for App {
 		}
 	}
 
-	fn render(&self, state: &mut Self::State) -> Self::Markup {
+	fn render(&mut self, state: &mut Self::State) -> Self::Markup {
 		let on_click = state.on_click.clone();
 		reactive(move |cx| div(("String", on("click", on_click.clone()))))
 	}

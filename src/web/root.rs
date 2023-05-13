@@ -18,11 +18,11 @@ impl<M> Root<M>
 where
 	M: Markup<WebSys>,
 {
-	pub fn render(markup: M, container: HtmlElement) -> Root<M> {
+	pub fn render(mut markup: M, container: HtmlElement) -> Root<M> {
 		let tree = Tree::root(container.unchecked_into(), WebSys {});
 		console_log!("Render root subtree");
 
-		render_subtree(&markup, &tree);
+		render_subtree(&mut markup, &tree);
 		Root {
 			markup,
 			tree,
@@ -30,7 +30,7 @@ where
 		}
 	}
 
-	pub fn ephemeral(markup: M) -> Root<M> {
+	pub fn ephemeral(mut markup: M) -> Root<M> {
 		let tree = Tree::ephemeral_root(WebSys {});
 		console_log!("Render root subtree");
 
@@ -51,7 +51,7 @@ where
 		self.tree.node().clone().unchecked_into()
 	}
 
-	pub fn update(&mut self, next: M) {
+	pub fn update(&mut self, mut next: M) {
 		if M::dynamic() {
 			let tree = if self.is_ephemeral {
 				self.tree.clone()
@@ -59,7 +59,7 @@ where
 				subtree::<M, _>(&self.tree)
 			};
 
-			next.diff(&self.markup, &tree);
+			next.diff(&mut self.markup, &tree);
 		}
 
 		self.markup = next;

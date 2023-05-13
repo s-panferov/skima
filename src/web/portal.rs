@@ -18,17 +18,17 @@ impl<M: Markup<WebSys>> Markup<WebSys> for Portal<M> {
 		M::dynamic()
 	}
 
-	fn render(&self, tree: &crate::tree::Tree<WebSys>) {
+	fn render(&mut self, tree: &crate::tree::Tree<WebSys>) {
 		tree.set_node(self.element.clone().unchecked_into());
-		render_subtree(&self.markup, tree);
+		render_subtree(&mut self.markup, tree);
 	}
 
-	fn diff(&self, prev: &Self, tree: &crate::tree::Tree<WebSys>) {
+	fn diff(&mut self, prev: &mut Self, tree: &crate::tree::Tree<WebSys>) {
 		let subtree = subtree::<M, _>(tree);
-		self.markup.diff(&prev.markup, &subtree);
+		self.markup.diff(&mut prev.markup, &subtree);
 	}
 
-	fn drop(&self, tree: &crate::tree::Tree<WebSys>, should_unmount: bool) {
+	fn drop(&mut self, tree: &crate::tree::Tree<WebSys>, should_unmount: bool) {
 		let subtree = subtree::<M, _>(tree);
 		self.markup.drop(&subtree, should_unmount);
 	}

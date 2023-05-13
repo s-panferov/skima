@@ -58,35 +58,35 @@ where
 		M::dynamic()
 	}
 
-	fn render(&self, tree: &Tree<B>) {
+	fn render(&mut self, tree: &Tree<B>) {
 		let mut context = ConstantContext { tree: tree.clone() };
 
 		if let Some(factory) = self.factory.take() {
-			let markup = factory(&mut context);
+			let mut markup = factory(&mut context);
 			markup.render(tree);
 			self.rendered.replace(Some(markup));
-		} else if let Some(markup) = self.rendered.borrow().as_ref() {
+		} else if let Some(markup) = self.rendered.borrow_mut().as_mut() {
 			markup.render(tree);
 		}
 	}
 
-	fn diff(&self, prev: &Self, tree: &Tree<B>) {
+	fn diff(&mut self, prev: &mut Self, tree: &Tree<B>) {
 		if !Self::dynamic() {
 			return;
 		}
 
 		let mut context = ConstantContext { tree: tree.clone() };
 		if let Some(factory) = self.factory.take() {
-			let markup = factory(&mut context);
-			markup.diff(prev.rendered.borrow().as_ref().unwrap(), tree);
+			let mut markup = factory(&mut context);
+			markup.diff(prev.rendered.borrow_mut().as_mut().unwrap(), tree);
 			self.rendered.replace(Some(markup));
-		} else if let Some(markup) = self.rendered.borrow().as_ref() {
-			markup.diff(prev.rendered.borrow().as_ref().unwrap(), tree);
+		} else if let Some(markup) = self.rendered.borrow_mut().as_mut() {
+			markup.diff(prev.rendered.borrow_mut().as_mut().unwrap(), tree);
 		}
 	}
 
-	fn drop(&self, tree: &Tree<B>, should_unmount: bool) {
-		if let Some(markup) = self.rendered.borrow().as_ref() {
+	fn drop(&mut self, tree: &Tree<B>, should_unmount: bool) {
+		if let Some(markup) = self.rendered.borrow_mut().as_mut() {
 			markup.drop(tree, should_unmount);
 		}
 

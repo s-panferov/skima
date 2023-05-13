@@ -46,12 +46,12 @@ impl<B: HtmlBackend, S: StringLike> Markup<B> for ClassList<S> {
 		S::DYNAMIC
 	}
 
-	fn render(&self, tree: &Tree<B>) {
+	fn render(&mut self, tree: &Tree<B>) {
 		let element = B::node_to_element(tree.closest_node()).unwrap();
 		tree.backend.add_class(&element, self.0.as_ref())
 	}
 
-	fn diff(&self, prev: &Self, tree: &Tree<B>) {
+	fn diff(&mut self, prev: &mut Self, tree: &Tree<B>) {
 		if prev.0.as_ref() != self.0.as_ref() {
 			let element = B::node_to_element(tree.closest_node()).unwrap();
 			tree.backend.remove_class(&element, prev.0.as_ref());
@@ -59,7 +59,7 @@ impl<B: HtmlBackend, S: StringLike> Markup<B> for ClassList<S> {
 		}
 	}
 
-	fn drop(&self, tree: &Tree<B>, should_unmount: bool) {
+	fn drop(&mut self, tree: &Tree<B>, should_unmount: bool) {
 		if should_unmount {
 			let element = B::node_to_element(tree.closest_node()).unwrap();
 			tree.backend.remove_class(&element, self.0.as_ref());
@@ -76,13 +76,13 @@ impl<B: HtmlBackend, S1: StringLike, S2: StringLike> Markup<B> for Attr<S1, S2> 
 		S1::DYNAMIC || S2::DYNAMIC
 	}
 
-	fn render(&self, tree: &Tree<B>) {
+	fn render(&mut self, tree: &Tree<B>) {
 		let element = B::node_to_element(tree.closest_node()).unwrap();
 		tree.backend
 			.set_attribute(&element, self.0.as_ref(), self.1.as_ref())
 	}
 
-	fn diff(&self, prev: &Self, tree: &Tree<B>) {
+	fn diff(&mut self, prev: &mut Self, tree: &Tree<B>) {
 		if prev.1.as_ref() != self.1.as_ref() {
 			let element = B::node_to_element(tree.closest_node()).unwrap();
 			tree.backend
@@ -90,7 +90,7 @@ impl<B: HtmlBackend, S1: StringLike, S2: StringLike> Markup<B> for Attr<S1, S2> 
 		}
 	}
 
-	fn drop(&self, tree: &Tree<B>, should_unmount: bool) {
+	fn drop(&mut self, tree: &Tree<B>, should_unmount: bool) {
 		if should_unmount {
 			let element = B::node_to_element(tree.closest_node()).unwrap();
 			tree.backend.remove_attribute(&element, self.0.as_ref());

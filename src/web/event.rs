@@ -32,7 +32,7 @@ where
 	}
 }
 
-pub(crate) struct EventListener<C>
+pub struct EventListener<C>
 where
 	C: EventCallback,
 {
@@ -75,7 +75,7 @@ where
 		true
 	}
 
-	fn render(&self, tree: &Tree<WebSys>) {
+	fn render(&mut self, tree: &Tree<WebSys>) {
 		tracing::debug!("Rendering event {}", self.event);
 		tracing::debug!("Event tree {:?}", tree);
 
@@ -99,7 +99,7 @@ where
 		tree.data_mut().set_with_key(self.key, data);
 	}
 
-	fn diff(&self, _prev: &Self, tree: &Tree<WebSys>) {
+	fn diff(&mut self, _prev: &mut Self, tree: &Tree<WebSys>) {
 		let data = tree
 			.data_mut()
 			.get_with_key::<Rc<EventListenerData<C>>>(self.key);
@@ -108,7 +108,7 @@ where
 		}
 	}
 
-	fn drop(&self, tree: &Tree<WebSys>, _should_unmount: bool) {
+	fn drop(&mut self, tree: &Tree<WebSys>, _should_unmount: bool) {
 		tracing::info!("Drop event {}", self.event);
 		let data = tree
 			.data_mut()
@@ -150,6 +150,6 @@ impl IntoEventCallback for Callback<dyn Fn()> {
 	}
 }
 
-pub fn on(event: &'static str, callback: impl IntoEventCallback) -> impl Markup {
+pub fn on<C: IntoEventCallback>(event: &'static str, callback: C) -> EventListener<C::Callback> {
 	EventListener::new(event, callback.into_callback())
 }
