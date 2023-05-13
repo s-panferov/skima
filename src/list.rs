@@ -26,10 +26,7 @@ where
 	_b: PhantomData<B>,
 }
 
-pub fn list<'a, K, T, F, M, B>(
-	iter: impl IntoIterator<Item = (K, T)>,
-	func: F,
-) -> List<K, T, F, M, B>
+pub fn list<K, T, F, M, B>(iter: impl IntoIterator<Item = (K, T)>, func: F) -> List<K, T, F, M, B>
 where
 	K: Eq + std::hash::Hash,
 	F: Fn(&T, &K) -> M,

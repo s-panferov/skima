@@ -3,14 +3,14 @@ use std::borrow::Cow;
 use crate::tree::Tree;
 use crate::web::Markup;
 
-pub macro impl_string($ty:ty $(, $a:lifetime )?) {
+pub macro impl_string($d:expr, $ty:ty $(, $a:lifetime )?) {
 	impl<$( $a, )? B: $crate::web::HtmlBackend> Markup<B> for $ty {
 		fn has_own_node() -> bool {
 			true
 		}
 
 		fn dynamic() -> bool {
-			true
+			$d
 		}
 
 		fn render(&mut self, tree: &Tree<B>) {
@@ -40,7 +40,7 @@ pub macro impl_string($ty:ty $(, $a:lifetime )?) {
 	}
 }
 
-impl_string!(String);
-impl_string!(bumpalo::collections::String<'a>, 'a);
-impl_string!(&'static str);
-impl_string!(Cow<'static, str>);
+impl_string!(true, String);
+impl_string!(true, bumpalo::collections::String<'a>, 'a);
+impl_string!(false, &'a str, 'a);
+impl_string!(true, Cow<'a, str>, 'a);
