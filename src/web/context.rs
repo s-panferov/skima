@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use std::rc::Weak;
 
 use bumpalo::Bump;
-use castaway::cast;
 use indexmap::IndexMap;
 
 use super::effect::EffectContext;
@@ -95,6 +94,44 @@ impl<B> Extension<WithState> for DefaultExt<B> {
 	}
 }
 
+impl<B> MaybeExtension<WithEffects<B, Self>> for DefaultExt<B> {
+	fn try_get(&self) -> Option<&WithEffects<B, Self>> {
+		Some(&self.effects)
+	}
+
+	fn try_get_mut(&mut self) -> Option<&mut WithEffects<B, Self>> {
+		Some(&mut self.effects)
+	}
+}
+
+impl<B> MaybeExtension<WithArena> for DefaultExt<B> {
+	fn try_get(&self) -> Option<&WithArena> {
+		None
+	}
+
+	fn try_get_mut(&mut self) -> Option<&mut WithArena> {
+		None
+	}
+}
+
+impl<B> Extension<WithEffects<B, DefaultExt<B>>> for DefaultExt<B> {
+	fn get(&self) -> &WithEffects<B, DefaultExt<B>> {
+		&self.effects
+	}
+	fn get_mut(&mut self) -> &mut WithEffects<B, DefaultExt<B>> {
+		&mut self.effects
+	}
+}
+
+impl<B> Extension<WithMemo> for DefaultExt<B> {
+	fn get(&self) -> &WithMemo {
+		&self.memo
+	}
+	fn get_mut(&mut self) -> &mut WithMemo {
+		&mut self.memo
+	}
+}
+
 pub trait Extension<T> {
 	fn get(&self) -> &T;
 	fn get_mut(&mut self) -> &mut T;
@@ -152,7 +189,20 @@ impl<B: Backend + 'static, E: 'static> StatefulContext<B, E> {
 		}
 	}
 
-	pub fn wrap<F, T>(&self, func: F) -> impl Fn(T)
+	pub fn wrap_0<F>(&self, func: F) -> impl Fn()
+	where
+		F: Fn(&mut Self),
+		E: Extension<WithCycle<B, E>>,
+	{
+		let this = self.ext.get().this.clone();
+		move || {
+			if let Some(this) = this.upgrade() {
+				(func)(&mut this.context())
+			}
+		}
+	}
+
+	pub fn wrap_1<F, T>(&self, func: F) -> impl Fn(T)
 	where
 		F: Fn(&mut Self, T),
 		E: Extension<WithCycle<B, E>>,

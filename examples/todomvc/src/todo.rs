@@ -33,7 +33,7 @@ pub fn todo_item(item: Var<TodoItem>) -> impl Markup {
 
 		let on_click = cx.callback_0({
 			let input_ref = input_ref.clone();
-			move |cx| {
+			cx.wrap_0(move |cx| {
 				cx.update::<Editing>(|e| e.0 = !e.0);
 				queue(enclose!((input_ref) move || {
 					let _ = input_ref
@@ -41,13 +41,13 @@ pub fn todo_item(item: Var<TodoItem>) -> impl Markup {
 					.unchecked_ref::<HtmlInputElement>()
 					.focus();
 				}))
-			}
+			})
 		});
 
 		let on_keydown = cx.callback_1_hash(&item, {
 			let item = item.clone();
 			let input_ref = input_ref.clone();
-			move |cx, ev: Event| {
+			cx.wrap_1(move |cx, ev: Event| {
 				let ev = ev.unchecked_into::<KeyboardEvent>();
 				match ev.key().as_ref() {
 					"Enter" => {
@@ -56,29 +56,29 @@ pub fn todo_item(item: Var<TodoItem>) -> impl Markup {
 					}
 					_ => {}
 				}
-			}
+			})
 		});
 
 		let on_blur = cx.callback_0_hash(
 			&item,
-			enclose!((item, input_ref) move |cx| {
+			cx.wrap_0(enclose!((item, input_ref) move |cx| {
 				update_title(&item, &input_ref, cx);
 				cx.update::<Editing>(|e| e.0 = !e.0);
-			}),
+			})),
 		);
 
 		let on_destroy = cx.callback_0_hash(
 			&item,
-			enclose!((item) move |cx| {
+			cx.wrap_0(enclose!((item) move |cx| {
 				destroy(&item, cx)
-			}),
+			})),
 		);
 
 		let on_toggle = cx.callback_0_hash(
 			&item,
-			enclose!((item) move |cx| {
+			cx.wrap_0(enclose!((item) move |cx| {
 				toggle(&item, cx)
-			}),
+			})),
 		);
 
 		let item = item.get(cx);

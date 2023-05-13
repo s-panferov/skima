@@ -2,11 +2,10 @@ use std::any::TypeId;
 use std::hash::Hash;
 use std::marker::{PhantomData, Unsize};
 use std::ops::Deref;
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
-use super::context::{Extension, StatefulContext, WithCycle, WithMemo};
+use super::context::{Extension, StatefulContext, WithMemo};
 use super::event::EventCallback;
-use crate::web::context::HasContext;
 use crate::Backend;
 
 pub struct Callback<T: ?Sized>(pub Rc<T>, TypeId);
@@ -106,46 +105,38 @@ impl<T: ?Sized> Deref for Callback<T> {
 
 impl<T: ?Sized> Eq for Callback<T> {}
 
-struct Callback0<F, R, M, B, E>
+struct Callback0<F, R, M>
 where
-	F: Fn(&mut StatefulContext<B, E>) -> R,
+	F: Fn() -> R,
 {
 	func: F,
 	memo: M,
-	context: Weak<dyn HasContext<B, E>>,
 }
 
-impl<F, R, M, B, E> Fn<()> for Callback0<F, R, M, B, E>
+impl<F, R, M> Fn<()> for Callback0<F, R, M>
 where
-	F: Fn(&mut StatefulContext<B, E>) -> R,
+	F: Fn() -> R,
 	R: Default,
-	B: Backend,
 {
 	extern "rust-call" fn call(&self, _args: ()) -> R {
-		if let Some(context) = self.context.upgrade() {
-			(self.func)(&mut *context.context())
-		} else {
-			Default::default()
-		}
+		(self.func)()
 	}
 }
 
-impl<F, R, M, B, E> FnMut<()> for Callback0<F, R, M, B, E>
+impl<F, R, M> FnMut<()> for Callback0<F, R, M>
 where
-	F: Fn(&mut StatefulContext<B, E>) -> R,
+	F: Fn() -> R,
 	R: Default,
-	B: Backend,
 {
 	extern "rust-call" fn call_mut(&mut self, args: ()) -> R {
 		self.call(args)
 	}
 }
 
-impl<F, R, M, B, E> FnOnce<()> for Callback0<F, R, M, B, E>
+impl<F, R, M> FnOnce<()> for Callback0<F, R, M>
 where
-	F: Fn(&mut StatefulContext<B, E>) -> R,
+	F: Fn() -> R,
 	R: Default,
-	B: Backend,
 {
 	extern "rust-call" fn call_once(self, args: ()) -> R {
 		self.call(args)
@@ -154,47 +145,39 @@ where
 	type Output = R;
 }
 
-struct Callback1<F, R, T, M, B, E>
+struct Callback1<F, R, T, M>
 where
-	F: Fn(&mut StatefulContext<B, E>, T) -> R,
+	F: Fn(T) -> R,
 {
 	func: F,
 	memo: M,
-	context: Weak<dyn HasContext<B, E>>,
 	_t: PhantomData<T>,
 }
 
-impl<F, R, T, M, B, E> Fn<(T,)> for Callback1<F, R, T, M, B, E>
+impl<F, R, T, M> Fn<(T,)> for Callback1<F, R, T, M>
 where
-	F: Fn(&mut StatefulContext<B, E>, T) -> R,
+	F: Fn(T) -> R,
 	R: Default,
-	B: Backend,
 {
 	extern "rust-call" fn call(&self, args: (T,)) -> R {
-		if let Some(context) = self.context.upgrade() {
-			(self.func)(&mut *context.context(), args.0)
-		} else {
-			Default::default()
-		}
+		(self.func)(args.0)
 	}
 }
 
-impl<F, R, T, M, B, E> FnMut<(T,)> for Callback1<F, R, T, M, B, E>
+impl<F, R, T, M> FnMut<(T,)> for Callback1<F, R, T, M>
 where
-	F: Fn(&mut StatefulContext<B, E>, T) -> R,
+	F: Fn(T) -> R,
 	R: Default,
-	B: Backend,
 {
 	extern "rust-call" fn call_mut(&mut self, args: (T,)) -> R {
 		self.call(args)
 	}
 }
 
-impl<F, R, T, M, B, E> FnOnce<(T,)> for Callback1<F, R, T, M, B, E>
+impl<F, R, T, M> FnOnce<(T,)> for Callback1<F, R, T, M>
 where
-	F: Fn(&mut StatefulContext<B, E>, T) -> R,
+	F: Fn(T) -> R,
 	R: Default,
-	B: Backend,
 {
 	extern "rust-call" fn call_once(self, args: (T,)) -> R {
 		self.call(args)
@@ -206,18 +189,17 @@ where
 impl<B: Backend + 'static, E: 'static> StatefulContext<B, E>
 where
 	E: Extension<WithMemo>,
-	E: Extension<WithCycle<B, E>>,
 {
 	pub fn callback_0_eq<F, R, M>(&self, memo: M, func: F) -> Callback<dyn Fn() -> R>
 	where
 		M: PartialEq + 'static,
 		R: Default + 'static,
-		F: Fn(&mut Self) -> R + 'static,
+		F: Fn() -> R + 'static,
 	{
 		let type_id = TypeId::of::<F>();
 		let with_memo: &WithMemo = self.ext.get();
 		if let Some(cb) = with_memo.memo.borrow_mut().try_dyn_with_type_id(type_id) {
-			let callback = Rc::downcast::<Callback0<F, R, M, B, E>>(cb.clone())
+			let callback = Rc::downcast::<Callback0<F, R, M>>(cb.clone())
 				.map_err(|_| ())
 				.unwrap();
 
@@ -226,11 +208,7 @@ where
 			}
 		}
 
-		let callback = Rc::new(Callback0 {
-			func,
-			memo,
-			context: Extension::<WithCycle<_, _>>::get(&self.ext).this.clone(),
-		});
+		let callback = Rc::new(Callback0 { func, memo });
 
 		with_memo
 			.memo
@@ -242,7 +220,7 @@ where
 
 	pub fn callback_0<F>(&self, func: F) -> Callback<dyn Fn()>
 	where
-		F: Fn(&mut Self) + 'static,
+		F: Fn() + 'static,
 	{
 		self.callback_0_eq((), func)
 	}
@@ -250,7 +228,7 @@ where
 	pub fn callback_0_hash<F, M>(&self, memo: &M, func: F) -> Callback<dyn Fn()>
 	where
 		M: Hash,
-		F: Fn(&mut Self) + 'static,
+		F: Fn() + 'static,
 	{
 		self.callback_0_eq(fxhash::hash64(memo), func)
 	}
@@ -259,13 +237,13 @@ where
 	where
 		M: PartialEq + 'static,
 		R: Default + 'static,
-		F: Fn(&mut Self, T) -> R + 'static,
+		F: Fn(T) -> R + 'static,
 	{
 		let type_id = TypeId::of::<F>();
 
 		let with_memo: &WithMemo = self.ext.get();
 		if let Some(cb) = with_memo.memo.borrow_mut().try_dyn_with_type_id(type_id) {
-			let callback = Rc::downcast::<Callback1<F, R, T, M, B, E>>(cb.clone())
+			let callback = Rc::downcast::<Callback1<F, R, T, M>>(cb.clone())
 				.map_err(|_| ())
 				.unwrap();
 
@@ -277,7 +255,6 @@ where
 		let callback = Rc::new(Callback1 {
 			func,
 			memo,
-			context: Extension::<WithCycle<_, _>>::get(&self.ext).this.clone(),
 			_t: PhantomData,
 		});
 
@@ -291,7 +268,7 @@ where
 
 	pub fn callback_1<F, R, T: 'static>(&self, func: F) -> Callback<dyn Fn(T) -> R>
 	where
-		F: Fn(&mut Self, T) -> R + 'static,
+		F: Fn(T) -> R + 'static,
 		R: Default + 'static,
 	{
 		self.callback_1_eq((), func)
@@ -305,7 +282,7 @@ where
 	where
 		M: Hash,
 		R: Default + 'static,
-		F: Fn(&mut Self, T) -> R + 'static,
+		F: Fn(T) -> R + 'static,
 	{
 		self.callback_1_eq(fxhash::hash64(memo), func)
 	}

@@ -69,16 +69,27 @@ where
 	}
 }
 
-#[derive(Default)]
 pub(crate) struct EffectContext<B, E> {
 	current: Option<Box<dyn Effective<B, E>>>,
 	scheduled: Option<Box<dyn Effective<B, E>>>,
 	alive: bool,
 }
 
-impl<B: Backend + Default + 'static, E: Default + 'static> StatefulContext<B, E>
+impl<B, E> Default for EffectContext<B, E> {
+	fn default() -> Self {
+		Self {
+			current: None,
+			scheduled: None,
+			alive: false,
+		}
+	}
+}
+
+impl<B: Backend, E> StatefulContext<B, E>
 where
 	E: Extension<WithEffects<B, E>>,
+	B: 'static,
+	E: 'static,
 {
 	pub fn effect<F>(&self, func: F)
 	where
