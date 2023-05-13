@@ -4,9 +4,9 @@ use std::marker::{PhantomData, Unsize};
 use std::ops::Deref;
 use std::rc::{Rc, Weak};
 
+use super::context::{Extension, StatefulContext, WithCycle, WithMemo};
 use super::event::EventCallback;
-use super::reactive::Extension;
-use crate::web::reactive::{ReactiveContext, WithMemo};
+use crate::web::context::HasContext;
 use crate::Backend;
 
 pub struct Callback<T: ?Sized>(pub Rc<T>, TypeId);
@@ -108,16 +108,16 @@ impl<T: ?Sized> Eq for Callback<T> {}
 
 struct Callback0<F, R, M, B, E>
 where
-	F: Fn(&mut ReactiveContext<B, E>) -> R,
+	F: Fn(&mut StatefulContext<B, E>) -> R,
 {
 	func: F,
 	memo: M,
-	context: Weak<dyn crate::web::reactive::Renderable<B, E>>,
+	context: Weak<dyn HasContext<B, E>>,
 }
 
 impl<F, R, M, B, E> Fn<()> for Callback0<F, R, M, B, E>
 where
-	F: Fn(&mut ReactiveContext<B, E>) -> R,
+	F: Fn(&mut StatefulContext<B, E>) -> R,
 	R: Default,
 	B: Backend,
 {
@@ -132,7 +132,7 @@ where
 
 impl<F, R, M, B, E> FnMut<()> for Callback0<F, R, M, B, E>
 where
-	F: Fn(&mut ReactiveContext<B, E>) -> R,
+	F: Fn(&mut StatefulContext<B, E>) -> R,
 	R: Default,
 	B: Backend,
 {
@@ -143,7 +143,7 @@ where
 
 impl<F, R, M, B, E> FnOnce<()> for Callback0<F, R, M, B, E>
 where
-	F: Fn(&mut ReactiveContext<B, E>) -> R,
+	F: Fn(&mut StatefulContext<B, E>) -> R,
 	R: Default,
 	B: Backend,
 {
@@ -156,17 +156,17 @@ where
 
 struct Callback1<F, R, T, M, B, E>
 where
-	F: Fn(&mut ReactiveContext<B, E>, T) -> R,
+	F: Fn(&mut StatefulContext<B, E>, T) -> R,
 {
 	func: F,
 	memo: M,
-	context: Weak<dyn crate::web::reactive::Renderable<B, E>>,
+	context: Weak<dyn HasContext<B, E>>,
 	_t: PhantomData<T>,
 }
 
 impl<F, R, T, M, B, E> Fn<(T,)> for Callback1<F, R, T, M, B, E>
 where
-	F: Fn(&mut ReactiveContext<B, E>, T) -> R,
+	F: Fn(&mut StatefulContext<B, E>, T) -> R,
 	R: Default,
 	B: Backend,
 {
@@ -181,7 +181,7 @@ where
 
 impl<F, R, T, M, B, E> FnMut<(T,)> for Callback1<F, R, T, M, B, E>
 where
-	F: Fn(&mut ReactiveContext<B, E>, T) -> R,
+	F: Fn(&mut StatefulContext<B, E>, T) -> R,
 	R: Default,
 	B: Backend,
 {
@@ -192,7 +192,7 @@ where
 
 impl<F, R, T, M, B, E> FnOnce<(T,)> for Callback1<F, R, T, M, B, E>
 where
-	F: Fn(&mut ReactiveContext<B, E>, T) -> R,
+	F: Fn(&mut StatefulContext<B, E>, T) -> R,
 	R: Default,
 	B: Backend,
 {
@@ -203,9 +203,10 @@ where
 	type Output = R;
 }
 
-impl<B: Backend + 'static, E: 'static> ReactiveContext<B, E>
+impl<B: Backend + 'static, E: 'static> StatefulContext<B, E>
 where
-	Self: Extension<WithMemo>,
+	E: Extension<WithMemo>,
+	E: Extension<WithCycle<B, E>>,
 {
 	pub fn callback_0_eq<F, R, M>(&self, memo: M, func: F) -> Callback<dyn Fn() -> R>
 	where
@@ -214,7 +215,7 @@ where
 		F: Fn(&mut Self) -> R + 'static,
 	{
 		let type_id = TypeId::of::<F>();
-		let with_memo: &WithMemo = self.try_extension().unwrap();
+		let with_memo: &WithMemo = self.ext.get();
 		if let Some(cb) = with_memo.memo.borrow_mut().try_dyn_with_type_id(type_id) {
 			let callback = Rc::downcast::<Callback0<F, R, M, B, E>>(cb.clone())
 				.map_err(|_| ())
@@ -228,7 +229,7 @@ where
 		let callback = Rc::new(Callback0 {
 			func,
 			memo,
-			context: self.renderable.clone(),
+			context: Extension::<WithCycle<_, _>>::get(&self.ext).this.clone(),
 		});
 
 		with_memo
@@ -262,7 +263,7 @@ where
 	{
 		let type_id = TypeId::of::<F>();
 
-		let with_memo: &WithMemo = self.try_extension().unwrap();
+		let with_memo: &WithMemo = self.ext.get();
 		if let Some(cb) = with_memo.memo.borrow_mut().try_dyn_with_type_id(type_id) {
 			let callback = Rc::downcast::<Callback1<F, R, T, M, B, E>>(cb.clone())
 				.map_err(|_| ())
@@ -276,7 +277,7 @@ where
 		let callback = Rc::new(Callback1 {
 			func,
 			memo,
-			context: self.renderable.clone(),
+			context: Extension::<WithCycle<_, _>>::get(&self.ext).this.clone(),
 			_t: PhantomData,
 		});
 

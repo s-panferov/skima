@@ -11,49 +11,46 @@ license = "MIT"
 
 [workspace]
 
-members = [
-    ".",
-    "macro",
-    "examples/todomvc"
-]
+members = [".", "macro", "examples/todomvc"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 bumpalo = { version = "3.12.0", features = ["collections"] }
-indexmap= "1.9.3"
-by_address= "1.1.0"
-tracing= "0.1.37"
-castaway= "0.2.2"
-fxhash= "0.2.1"
+indexmap = "1.9.3"
+by_address = "1.1.0"
+tracing = "0.1.37"
+castaway = "0.2.2"
+fxhash = "0.2.1"
 downcast-rs = "1.2.0"
-no-panic= "0.1.22"
-observe="1.1.0"
+no-panic = "0.1.22"
+observe = "1.1.0"
 
 wasm-bindgen = "0.2.84"
 js-sys = "0.3.61"
-smallvec= "1.10.0"
+smallvec = "1.10.0"
 console_error_panic_hook = "0.1.7"
 tracing-wasm = "0.2.1"
 
 skima-rsx = { path = "./macro" }
+type_at = "*"
 
-web-sys={ version = "0.3.61", features = [
-  "Window", 
-  "console", 
-  "Event", 
-  "Node", 
-  "Text", 
-  "Element", 
+web-sys = { version = "0.3.61", features = [
+  "Window",
+  "console",
+  "Event",
+  "Node",
+  "Text",
+  "Element",
   "History",
-  "HtmlElement", 
+  "HtmlElement",
   "HtmlCollection",
   "DomTokenList",
-  "Document", 
+  "Document",
   "NodeList",
   "CssStyleDeclaration",
-  "Range"
+  "Range",
 ] }
 
 [dev-dependencies]

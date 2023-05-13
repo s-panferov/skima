@@ -1,275 +1,35 @@
-use std::any::{type_name, Any, TypeId};
+use std::any::{request_value, type_name, Any, Provider, TypeId};
 use std::cell::{Cell, RefCell, RefMut};
-use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::rc::{Rc, Weak};
 
-use bumpalo::Bump;
-use castaway::cast;
-use indexmap::IndexMap;
 use observe::{Dependencies, Derived, Evaluation, Invalid, State, CHANGED};
 use wasm_bindgen::prelude::{wasm_bindgen, Closure};
 use wasm_bindgen::JsValue;
 
+use super::context::{
+	DynInit, Extension, HasContext, MaybeExtension, StatefulContext, WithArena, WithCycle,
+	WithEffects, WithMemo, WithState,
+};
 use super::WebSys;
-use crate::action::Action;
-use crate::anydata::{AnyData, Envelope};
-use crate::dont_panic;
 use crate::reference::Mutable;
 use crate::tree::Tree;
-use crate::web::effect::EffectContext;
 use crate::web::{Backend, Markup};
 
-#[derive(Default)]
-pub struct WithArena {
-	pub(crate) arena: Bump,
-	pub(crate) arena_prev: Bump,
-}
-
-#[derive(Default)]
 pub struct WithReactions {
-	evaluation: Option<Evaluation>,
-	dependencies: Dependencies,
+	pub(crate) evaluation: Option<Evaluation>,
+	pub(crate) dependencies: Dependencies,
+	pub(crate) derived: Weak<dyn Derived>,
 }
 
-#[derive(Default)]
-pub struct WithMemo {
-	pub(crate) memo: RefCell<AnyData>,
-}
+pub type ReactiveContext<B = WebSys, E = ReactiveExt<B>> = StatefulContext<B, E>;
 
-#[derive(Default)]
-pub struct WithState {
-	state: HashMap<TypeId, Box<dyn Any>>,
-}
-
-pub struct ReactiveContext<B: Backend = WebSys, E = (WithMemo, WithReactions, WithState)> {
-	pub(crate) effects: RefCell<IndexMap<TypeId, EffectContext<B, E>>>,
-	pub(crate) renderable: Weak<dyn Renderable<B, E>>,
-	derived: Weak<dyn Derived>,
-	tree: Tree<B>,
-	ext: E,
-}
-
-pub trait Extension<T> {
-	fn extension(&self) -> &T;
-	fn try_extension(&self) -> Option<&T>;
-}
-
-pub trait ExtensionMut<T> {
-	fn extension_mut(&mut self) -> &mut T;
-	fn try_extension_mut(&mut self) -> Option<&mut T>;
-}
-
-impl<BACKEND: Backend, A: 'static, T: 'static> ExtensionMut<T> for ReactiveContext<BACKEND, (A,)> {
-	fn extension_mut(&mut self) -> &mut T {
-		if let Ok(t) = cast!(&mut self.ext.0, &mut T) {
-			return t;
-		}
-
-		dont_panic!()
-	}
-
-	fn try_extension_mut(&mut self) -> Option<&mut T> {
-		if let Ok(t) = cast!(&mut self.ext.0, &mut T) {
-			return Some(t);
-		}
-
-		None
-	}
-}
-
-impl<BACKEND: Backend, A: 'static, B: 'static, T: 'static> ExtensionMut<T>
-	for ReactiveContext<BACKEND, (A, B)>
-{
-	fn extension_mut(&mut self) -> &mut T {
-		if let Ok(t) = cast!(&mut self.ext.0, &mut T) {
-			return t;
-		} else if let Ok(t) = cast!(&mut self.ext.1, &mut T) {
-			return t;
-		}
-
-		dont_panic!()
-	}
-
-	fn try_extension_mut(&mut self) -> Option<&mut T> {
-		if let Ok(t) = cast!(&mut self.ext.0, &mut T) {
-			return Some(t);
-		} else if let Ok(t) = cast!(&mut self.ext.1, &mut T) {
-			return Some(t);
-		}
-
-		None
-	}
-}
-
-impl<BACKEND: Backend, A: 'static, B: 'static, C: 'static, T: 'static> ExtensionMut<T>
-	for ReactiveContext<BACKEND, (A, B, C)>
-{
-	fn extension_mut(&mut self) -> &mut T {
-		if let Ok(t) = cast!(&mut self.ext.0, &mut T) {
-			return t;
-		} else if let Ok(t) = cast!(&mut self.ext.1, &mut T) {
-			return t;
-		} else if let Ok(t) = cast!(&mut self.ext.2, &mut T) {
-			return t;
-		}
-
-		dont_panic!()
-	}
-
-	fn try_extension_mut(&mut self) -> Option<&mut T> {
-		if let Ok(t) = cast!(&mut self.ext.0, &mut T) {
-			return Some(t);
-		} else if let Ok(t) = cast!(&mut self.ext.1, &mut T) {
-			return Some(t);
-		} else if let Ok(t) = cast!(&mut self.ext.2, &mut T) {
-			return Some(t);
-		}
-
-		None
-	}
-}
-
-impl<BACKEND: Backend, A: 'static, B: 'static, C: 'static, D: 'static, T: 'static> ExtensionMut<T>
-	for ReactiveContext<BACKEND, (A, B, C, D)>
-{
-	fn extension_mut(&mut self) -> &mut T {
-		if let Ok(t) = cast!(&mut self.ext.0, &mut T) {
-			return t;
-		} else if let Ok(t) = cast!(&mut self.ext.1, &mut T) {
-			return t;
-		} else if let Ok(t) = cast!(&mut self.ext.2, &mut T) {
-			return t;
-		} else if let Ok(t) = cast!(&mut self.ext.3, &mut T) {
-			return t;
-		}
-
-		dont_panic!()
-	}
-
-	fn try_extension_mut(&mut self) -> Option<&mut T> {
-		if let Ok(t) = cast!(&mut self.ext.0, &mut T) {
-			return Some(t);
-		} else if let Ok(t) = cast!(&mut self.ext.1, &mut T) {
-			return Some(t);
-		} else if let Ok(t) = cast!(&mut self.ext.2, &mut T) {
-			return Some(t);
-		} else if let Ok(t) = cast!(&mut self.ext.3, &mut T) {
-			return Some(t);
-		}
-
-		None
-	}
-}
-
-impl<BACKEND: Backend, A: 'static, T: 'static> Extension<T> for ReactiveContext<BACKEND, (A,)> {
-	fn extension(&self) -> &T {
-		if let Ok(t) = cast!(&self.ext.0, &T) {
-			return t;
-		}
-
-		dont_panic!()
-	}
-
-	fn try_extension(&self) -> Option<&T> {
-		if let Ok(t) = cast!(&self.ext.0, &T) {
-			return Some(t);
-		}
-
-		None
-	}
-}
-
-impl<BACKEND: Backend, A: 'static, B: 'static, T: 'static> Extension<T>
-	for ReactiveContext<BACKEND, (A, B)>
-{
-	fn extension(&self) -> &T {
-		if let Ok(t) = cast!(&self.ext.0, &T) {
-			return t;
-		} else if let Ok(t) = cast!(&self.ext.1, &T) {
-			return t;
-		}
-
-		dont_panic!()
-	}
-
-	fn try_extension(&self) -> Option<&T> {
-		if let Ok(t) = cast!(&self.ext.0, &T) {
-			return Some(t);
-		} else if let Ok(t) = cast!(&self.ext.1, &T) {
-			return Some(t);
-		}
-
-		None
-	}
-}
-
-impl<BACKEND: Backend, A: 'static, B: 'static, C: 'static, T: 'static> Extension<T>
-	for ReactiveContext<BACKEND, (A, B, C)>
-{
-	fn extension(&self) -> &T {
-		if let Ok(t) = cast!(&self.ext.0, &T) {
-			return t;
-		} else if let Ok(t) = cast!(&self.ext.1, &T) {
-			return t;
-		} else if let Ok(t) = cast!(&self.ext.2, &T) {
-			return t;
-		}
-
-		dont_panic!()
-	}
-
-	fn try_extension(&self) -> Option<&T> {
-		if let Ok(t) = cast!(&self.ext.0, &T) {
-			return Some(t);
-		} else if let Ok(t) = cast!(&self.ext.1, &T) {
-			return Some(t);
-		} else if let Ok(t) = cast!(&self.ext.2, &T) {
-			return Some(t);
-		}
-
-		None
-	}
-}
-
-impl<BACKEND: Backend, A: 'static, B: 'static, C: 'static, D: 'static, T: 'static> Extension<T>
-	for ReactiveContext<BACKEND, (A, B, C, D)>
-{
-	fn extension(&self) -> &T {
-		if let Ok(t) = cast!(&self.ext.0, &T) {
-			return t;
-		} else if let Ok(t) = cast!(&self.ext.1, &T) {
-			return t;
-		} else if let Ok(t) = cast!(&self.ext.2, &T) {
-			return t;
-		} else if let Ok(t) = cast!(&self.ext.3, &T) {
-			return t;
-		}
-
-		dont_panic!()
-	}
-
-	fn try_extension(&self) -> Option<&T> {
-		if let Ok(t) = cast!(&self.ext.0, &T) {
-			return Some(t);
-		} else if let Ok(t) = cast!(&self.ext.1, &T) {
-			return Some(t);
-		} else if let Ok(t) = cast!(&self.ext.2, &T) {
-			return Some(t);
-		} else if let Ok(t) = cast!(&self.ext.3, &T) {
-			return Some(t);
-		}
-
-		None
-	}
-}
-
-impl<BACKEND: Backend, T> AsRef<Evaluation> for ReactiveContext<BACKEND, T>
+impl<BACKEND: Backend, E> AsRef<Evaluation> for StatefulContext<BACKEND, E>
 where
-	Self: Extension<WithReactions>,
+	E: Extension<WithReactions>,
 {
 	fn as_ref(&self) -> &Evaluation {
-		let with_reactions = self.extension();
+		let with_reactions = self.ext.get();
 		with_reactions.evaluation.as_ref().unwrap()
 	}
 }
@@ -299,31 +59,12 @@ impl<T: Any> IntoMemo for Rc<T> {
 	}
 }
 
-impl<B: Backend, E> ReactiveContext<B, E>
-where
-	Self: Extension<WithMemo>,
-{
-	pub fn with_memo<T: Envelope, F: FnOnce() -> T + 'static>(&mut self, func: F) -> T::Output {
-		let with_memo: &WithMemo = self.try_extension().unwrap();
-		let mut memo = with_memo.memo.borrow_mut();
-		let key = fxhash::hash64(&(TypeId::of::<T>(), TypeId::of::<F>()));
-		if let Some(item) = memo.try_with_key::<T>(key) {
-			item
-		} else {
-			let t = func();
-			memo.set_with_key::<T>(key, t);
-			memo.get_with_key::<T>(key)
-		}
-	}
-}
-
-impl<B: Backend, E> ReactiveContext<B, E>
-where
-	Self: ExtensionMut<WithState>,
-	Self: Extension<WithState>,
-{
-	pub fn get<T: Any>(&self) -> &T {
-		let state: &WithState = self.try_extension().unwrap();
+impl<B: Backend, E> StatefulContext<B, E> {
+	pub fn get<T: Any>(&self) -> &T
+	where
+		E: Extension<WithState>,
+	{
+		let state: &WithState = self.ext.get();
 		state
 			.state
 			.get(&TypeId::of::<T>())
@@ -333,8 +74,11 @@ where
 			.unwrap()
 	}
 
-	pub fn mutable<T: 'static>(&mut self, value: T) -> Mutable<T> {
-		let state: &mut WithState = self.try_extension_mut().unwrap();
+	pub fn mutable<T: 'static>(&mut self, value: T) -> Mutable<T>
+	where
+		E: Extension<WithState>,
+	{
+		let state: &mut WithState = self.ext.get_mut();
 		// TODO: Store mutables separately to avoid double allocation
 		state
 			.state
@@ -346,8 +90,11 @@ where
 			.clone()
 	}
 
-	pub fn with<T: Any>(&mut self, value: T) {
-		let state: &mut WithState = self.try_extension_mut().unwrap();
+	pub fn with<T: Any>(&mut self, value: T)
+	where
+		E: Extension<WithState>,
+	{
+		let state: &mut WithState = self.ext.get_mut();
 
 		let tid = TypeId::of::<T>();
 		state
@@ -356,8 +103,11 @@ where
 			.or_insert_with(|| Box::new(value) as Box<dyn Any>);
 	}
 
-	pub fn with_fn<T: Any>(&mut self, func: impl FnOnce() -> T) {
-		let state: &mut WithState = self.try_extension_mut().unwrap();
+	pub fn with_fn<T: Any>(&mut self, func: impl FnOnce() -> T)
+	where
+		E: Extension<WithState>,
+	{
+		let state: &mut WithState = self.ext.get_mut();
 
 		let tid = TypeId::of::<T>();
 		state
@@ -366,90 +116,65 @@ where
 			.or_insert_with(|| Box::new((func)()) as Box<dyn Any>);
 	}
 
-	pub fn update<T: Any>(&mut self, func: impl FnOnce(&mut T)) {
-		let state: &mut WithState = self.try_extension_mut().unwrap();
+	pub fn update<T: Any>(&mut self, func: impl FnOnce(&mut T))
+	where
+		E: Extension<WithState>,
+		E: MaybeExtension<WithReactions>,
+	{
+		let state: &mut WithState = self.ext.get_mut();
 		state
 			.state
 			.entry(TypeId::of::<T>())
 			.and_modify(|v| func(v.downcast_mut().unwrap()));
 
-		observe::batch_microtask(|| {
-			self.derived
-				.upgrade()
-				.unwrap()
-				.invalidate(Invalid::Definitely);
-		});
+		if MaybeExtension::<WithReactions>::has(&self.ext) {
+			observe::batch_microtask(|| {
+				let reactions = self.ext.try_get_mut().unwrap();
+				reactions
+					.derived
+					.upgrade()
+					.unwrap()
+					.invalidate(Invalid::Definitely);
+			});
+		}
 	}
 
-	pub fn set<T: Any>(&mut self, value: T) {
-		let state: &mut WithState = self.try_extension_mut().unwrap();
+	pub fn set<T: Any>(&mut self, value: T)
+	where
+		E: Extension<WithState>,
+		E: MaybeExtension<WithReactions>,
+	{
+		let state: &mut WithState = self.ext.get_mut();
 		state
 			.state
 			.insert(TypeId::of::<T>(), Box::new(value) as Box<dyn Any>);
 
-		observe::batch_microtask(|| {
-			self.derived
-				.upgrade()
-				.unwrap()
-				.invalidate(Invalid::Definitely);
-		});
-	}
-}
-
-impl<B: Backend + 'static, E: 'static> ReactiveContext<B, E> {
-	pub fn dispatch<T: Action>(&self, action: T) {
-		let action = Box::new(action) as Box<dyn Action>;
-		let tree = self.tree.clone();
-		// FIXME: do we need a queue?
-		queue(move || tree.dispatch(action))
-	}
-
-	// FIXME: Monomorphization
-	pub fn env<T: Envelope>(&mut self) -> T::Output {
-		self.try_env::<T>().unwrap_or_else(|| {
-			panic!("No data of type {} the context", std::any::type_name::<T>());
-		})
-	}
-
-	pub fn try_env<T: Envelope>(&mut self) -> Option<T::Output> {
-		let mut cursor: Option<Tree<B>> = Some(self.tree.clone());
-
-		while let Some(tree) = cursor {
-			if let Some(data) = tree.data().try_get::<T>() {
-				return Some(data);
-			}
-			cursor = tree.parent.clone();
-		}
-
-		None
-	}
-
-	pub fn wrap<F, T>(&self, func: F) -> impl Fn(T)
-	where
-		F: Fn(&mut Self, T),
-	{
-		let component = self.renderable.clone();
-		move |v| {
-			if let Some(component) = component.upgrade() {
-				(func)(&mut component.context(), v)
-			}
+		if MaybeExtension::<WithReactions>::has(&self.ext) {
+			observe::batch_microtask(|| {
+				let reactions = self.ext.try_get_mut().unwrap();
+				reactions
+					.derived
+					.upgrade()
+					.unwrap()
+					.invalidate(Invalid::Definitely);
+			});
 		}
 	}
 }
 
 pub struct ReactiveComponentInner<
-	F: Fn(&mut ReactiveContext<B, E>) -> M,
+	F: Fn(&mut StatefulContext<B, E>) -> M,
 	M: Markup<B>,
 	B: Backend,
 	E,
 > {
-	context: ReactiveContext<B, E>,
+	context: StatefulContext<B, E>,
 	markup: M,
 	factory: Rc<F>,
 }
 
 pub struct ReactiveComponentFactory<
-	F: Fn(&mut ReactiveContext<B, E>) -> M + 'static,
+	F: Fn(&mut StatefulContext<B, E>) -> M + 'static,
 	M: Markup<B> + 'static,
 	B: Backend + 'static,
 	E = (),
@@ -460,10 +185,111 @@ pub struct ReactiveComponentFactory<
 	_e: PhantomData<E>,
 }
 
+pub struct ReactiveExt<B: 'static> {
+	pub effects: WithEffects<B, Self>,
+	pub state: WithState,
+	pub memo: WithMemo,
+	pub cycle: WithCycle<B, Self>,
+	reactions: WithReactions,
+}
+
+impl<B> DynInit for ReactiveExt<B> {
+	fn dyn_init(provider: &dyn Provider) -> Self {
+		Self {
+			effects: Default::default(),
+			state: Default::default(),
+			memo: Default::default(),
+			cycle: WithCycle {
+				this: request_value(provider).unwrap(),
+			},
+			reactions: WithReactions {
+				evaluation: Default::default(),
+				dependencies: Default::default(),
+				derived: request_value(provider).unwrap(),
+			},
+		}
+	}
+}
+
+impl<B> MaybeExtension<WithReactions> for ReactiveExt<B> {
+	fn try_get(&self) -> Option<&WithReactions> {
+		Some(&self.reactions)
+	}
+
+	fn try_get_mut(&mut self) -> Option<&mut WithReactions> {
+		Some(&mut self.reactions)
+	}
+}
+
+impl<B> MaybeExtension<WithEffects<B, Self>> for ReactiveExt<B> {
+	fn try_get(&self) -> Option<&WithEffects<B, Self>> {
+		Some(&self.effects)
+	}
+
+	fn try_get_mut(&mut self) -> Option<&mut WithEffects<B, Self>> {
+		Some(&mut self.effects)
+	}
+}
+
+impl<B> MaybeExtension<WithArena> for ReactiveExt<B> {
+	fn try_get(&self) -> Option<&WithArena> {
+		None
+	}
+
+	fn try_get_mut(&mut self) -> Option<&mut WithArena> {
+		None
+	}
+}
+
+impl<B> Extension<WithReactions> for ReactiveExt<B> {
+	fn get(&self) -> &WithReactions {
+		&self.reactions
+	}
+	fn get_mut(&mut self) -> &mut WithReactions {
+		&mut self.reactions
+	}
+}
+
+impl<B> Extension<WithCycle<B, Self>> for ReactiveExt<B> {
+	fn get(&self) -> &WithCycle<B, Self> {
+		&self.cycle
+	}
+	fn get_mut(&mut self) -> &mut WithCycle<B, Self> {
+		&mut self.cycle
+	}
+}
+
+impl<B> Extension<WithMemo> for ReactiveExt<B> {
+	fn get(&self) -> &WithMemo {
+		&self.memo
+	}
+	fn get_mut(&mut self) -> &mut WithMemo {
+		&mut self.memo
+	}
+}
+
+impl<B> Extension<WithState> for ReactiveExt<B> {
+	fn get(&self) -> &WithState {
+		&self.state
+	}
+	fn get_mut(&mut self) -> &mut WithState {
+		&mut self.state
+	}
+}
+
+impl<B> Extension<WithEffects<B, ReactiveExt<B>>> for ReactiveExt<B> {
+	fn get(&self) -> &WithEffects<B, ReactiveExt<B>> {
+		&self.effects
+	}
+	fn get_mut(&mut self) -> &mut WithEffects<B, ReactiveExt<B>> {
+		&mut self.effects
+	}
+}
+
 // TODO: Think about the allocation here
 pub fn reactive<F, M, B>(factory: F) -> impl Markup<B>
 where
-	F: Fn(&mut ReactiveContext<B, (WithMemo, WithReactions, WithState)>) -> M + 'static,
+	F: Fn(&mut StatefulContext<B, ReactiveExt<B>>) -> M + 'static,
 	M: Markup<B> + 'static,
 	B: Backend + 'static,
 {
@@ -475,42 +301,44 @@ where
 	}
 }
 
-pub(crate) trait Renderable<B: Backend, E> {
-	fn update(&self);
-	fn context(&self) -> RefMut<ReactiveContext<B, E>>;
-}
-
 pub struct ReactiveComponent<F, M, B, E: 'static>
 where
-	F: Fn(&mut ReactiveContext<B, E>) -> M + 'static,
+	F: Fn(&mut StatefulContext<B, E>) -> M + 'static,
 	M: Markup<B> + 'static,
 	B: Backend + 'static,
+	E: Extension<WithCycle<B, E>>,
+	E: MaybeExtension<WithEffects<B, E>>,
 {
-	this: Weak<Self>,
 	state: Cell<State>,
 	inner: RefCell<ReactiveComponentInner<F, M, B, E>>,
 }
 
 impl<F, M, B, E: 'static> Drop for ReactiveComponent<F, M, B, E>
 where
-	F: Fn(&mut ReactiveContext<B, E>) -> M + 'static,
+	F: Fn(&mut StatefulContext<B, E>) -> M + 'static,
 	M: Markup<B> + 'static,
 	B: Backend + 'static,
+	E: Extension<WithCycle<B, E>>,
+	E: MaybeExtension<WithEffects<B, E>>,
 {
 	fn drop(&mut self) {
 		tracing::info!("Reactive component destroyed");
-		self.inner.borrow().context.cleanup_effects_internal()
+		let context = &self.inner.borrow_mut().context;
+		if let Some(effects @ WithEffects { .. }) = context.ext.try_get() {
+			effects.cleanup_effects_internal(context)
+		}
 	}
 }
 
 impl<F, M, B, E> ReactiveComponent<F, M, B, E>
 where
-	F: Fn(&mut ReactiveContext<B, E>) -> M + 'static,
+	F: Fn(&mut StatefulContext<B, E>) -> M + 'static,
 	M: Markup<B> + 'static,
 	B: Backend + 'static,
-	E: Default + 'static,
-	ReactiveContext<B, E>: ExtensionMut<WithReactions>,
-	ReactiveContext<B, E>: ExtensionMut<WithArena>,
+	E: Extension<WithCycle<B, E>>,
+	E: MaybeExtension<WithEffects<B, E>>,
+	E: MaybeExtension<WithReactions>,
+	E: MaybeExtension<WithArena>,
 {
 	pub fn update(&self) {
 		// Passing the same context
@@ -522,7 +350,7 @@ where
 			State::Invalid(Invalid::Definitely) => false,
 			State::Invalid(Invalid::Maybe) => {
 				if let Some(with_reactions @ WithReactions { .. }) =
-					component.context.try_extension_mut()
+					component.context.ext.try_get_mut()
 				{
 					with_reactions.dependencies.are_valid()
 				} else {
@@ -536,21 +364,22 @@ where
 			return;
 		}
 
-		component.context.reset_effects_alive();
+		if let Some(with_effects @ WithEffects { .. }) = component.context.ext.try_get_mut() {
+			with_effects.reset_effects_alive();
+		}
 
 		let mut next_markup = (component.factory)(&mut component.context);
 
 		self.state.set(State::Valid);
 
-		let derived = component.context.derived.clone();
-		if let Some(with_reactions @ WithReactions { .. }) = component.context.try_extension_mut() {
+		if let Some(with_reactions @ WithReactions { .. }) = component.context.ext.try_get_mut() {
 			with_reactions.dependencies.swap(
 				with_reactions
 					.evaluation
-					.replace(Evaluation::new(derived.clone()))
+					.replace(Evaluation::new(with_reactions.derived.clone()))
 					.unwrap()
 					.take(),
-				&derived,
+				&with_reactions.derived,
 			);
 		}
 
@@ -560,15 +389,19 @@ where
 
 		component.markup = next_markup;
 
-		if let Some(with_arena @ WithArena { .. }) = component.context.try_extension_mut() {
+		if let Some(with_arena @ WithArena { .. }) = component.context.ext.try_get_mut() {
 			with_arena.arena_prev.reset();
 			std::mem::swap(&mut with_arena.arena, &mut with_arena.arena_prev);
 		}
 
-		let component = component.context.renderable.clone();
+		let this = component.context.ext.get().this.clone();
 		queue(move || {
-			if let Some(c) = component.upgrade() {
-				c.context().run_effects()
+			if let Some(c) = this.upgrade() {
+				let context = c.context();
+				// TODO move check up
+				if let Some(with_effects @ WithEffects { .. }) = context.ext.try_get() {
+					with_effects.run_effects(&context);
+				}
 			}
 		});
 	}
@@ -576,12 +409,13 @@ where
 
 impl<F, M, B, E> observe::Reactive for ReactiveComponent<F, M, B, E>
 where
-	F: Fn(&mut ReactiveContext<B, E>) -> M + 'static,
+	F: Fn(&mut StatefulContext<B, E>) -> M + 'static,
 	M: Markup<B> + 'static,
 	B: Backend + 'static,
-	E: Default + 'static,
-	ReactiveContext<B, E>: ExtensionMut<WithReactions>,
-	ReactiveContext<B, E>: ExtensionMut<WithArena>,
+	E: Extension<WithCycle<B, E>>,
+	E: MaybeExtension<WithEffects<B, E>>,
+	E: MaybeExtension<WithReactions>,
+	E: MaybeExtension<WithArena>,
 {
 	fn update(&self) {
 		ReactiveComponent::update(self)
@@ -590,12 +424,13 @@ where
 
 impl<F, M, B, E> Derived for ReactiveComponent<F, M, B, E>
 where
-	F: Fn(&mut ReactiveContext<B, E>) -> M + 'static,
+	F: Fn(&mut StatefulContext<B, E>) -> M + 'static,
 	M: Markup<B> + 'static,
 	B: Backend + 'static,
-	E: Default + 'static,
-	ReactiveContext<B, E>: ExtensionMut<WithReactions>,
-	ReactiveContext<B, E>: ExtensionMut<WithArena>,
+	E: Extension<WithCycle<B, E>>,
+	E: MaybeExtension<WithEffects<B, E>>,
+	E: MaybeExtension<WithReactions>,
+	E: MaybeExtension<WithArena>,
 {
 	fn invalidate(self: Rc<Self>, invalid: observe::Invalid) {
 		if matches!(self.state.get(), State::Valid) {
@@ -618,12 +453,14 @@ where
 
 impl<F, M, B, E> Markup<B> for ReactiveComponentFactory<F, M, B, E>
 where
-	F: Fn(&mut ReactiveContext<B, E>) -> M + 'static,
+	F: Fn(&mut StatefulContext<B, E>) -> M + 'static,
 	M: Markup<B> + 'static,
 	B: Backend + 'static,
-	ReactiveContext<B, E>: ExtensionMut<WithReactions>,
-	ReactiveContext<B, E>: ExtensionMut<WithArena>,
-	E: Default + 'static,
+	E: Extension<WithCycle<B, E>>,
+	E: MaybeExtension<WithReactions>,
+	E: MaybeExtension<WithArena>,
+	E: MaybeExtension<WithEffects<B, E>>,
+	E: DynInit + 'static,
 {
 	fn has_own_node() -> bool {
 		M::has_own_node()
@@ -635,15 +472,26 @@ where
 
 	fn render(&mut self, tree: &Tree<B>) {
 		let component = Rc::new_cyclic(|this: &Weak<ReactiveComponent<F, M, B, E>>| {
-			let mut context = ReactiveContext {
-				renderable: this.clone() as Weak<dyn Renderable<B, E>>,
-				ext: E::default(),
-				effects: Default::default(),
-				derived: this.clone() as Weak<dyn Derived>,
+			struct P<B, E> {
+				derived: Weak<dyn Derived>,
+				this: Weak<dyn HasContext<B, E>>,
+			}
+
+			impl<B, E> Provider for P<B, E> {
+				fn provide<'a>(&'a self, demand: &mut std::any::Demand<'a>) {
+					demand.provide_value(self.derived.clone());
+				}
+			}
+
+			let mut context = StatefulContext {
 				tree: tree.clone(),
+				ext: E::dyn_init(&P {
+					this: this.clone() as Weak<dyn HasContext<B, E>>,
+					derived: this.clone() as Weak<dyn Derived>,
+				}),
 			};
 
-			if let Some(with_reactions @ WithReactions { .. }) = context.try_extension_mut() {
+			if let Some(with_reactions @ WithReactions { .. }) = context.ext.try_get_mut() {
 				with_reactions
 					.evaluation
 					.replace(Evaluation::new(this.clone()));
@@ -651,13 +499,12 @@ where
 
 			let mut markup = (self.factory)(&mut context);
 
-			if let Some(with_arena @ WithArena { .. }) = context.try_extension_mut() {
+			if let Some(with_arena @ WithArena { .. }) = context.ext.try_get_mut() {
 				std::mem::swap(&mut with_arena.arena, &mut with_arena.arena_prev);
 			}
 
-			// FIXME: clone
-			let derived = context.derived.clone();
-			if let Some(with_reactions @ WithReactions { .. }) = context.try_extension_mut() {
+			if let Some(with_reactions @ WithReactions { .. }) = context.ext.try_get_mut() {
+				let derived = with_reactions.derived.clone();
 				with_reactions.dependencies.swap(
 					with_reactions
 						.evaluation
@@ -673,12 +520,14 @@ where
 			let component = this.clone();
 			queue(move || {
 				if let Some(c) = component.upgrade() {
-					RefCell::borrow(&c.inner).context.run_effects();
+					let context = &RefCell::borrow(&c.inner).context;
+					if let Some(with_arena @ WithEffects { .. }) = context.ext.try_get() {
+						with_arena.run_effects(&context);
+					}
 				}
 			});
 
 			ReactiveComponent {
-				this: this.clone(),
 				state: Cell::new(State::Valid),
 				inner: RefCell::new(ReactiveComponentInner {
 					context,
@@ -720,20 +569,15 @@ where
 	}
 }
 
-impl<M, B, F, E> Renderable<B, E> for ReactiveComponent<F, M, B, E>
+impl<M, B, F, E> HasContext<B, E> for ReactiveComponent<F, M, B, E>
 where
 	M: Markup<B>,
 	B: Backend,
-	F: Fn(&mut ReactiveContext<B, E>) -> M,
-	E: Default + 'static,
-	ReactiveContext<B, E>: ExtensionMut<WithReactions>,
-	ReactiveContext<B, E>: ExtensionMut<WithArena>,
+	F: Fn(&mut StatefulContext<B, E>) -> M,
+	E: Extension<WithCycle<B, E>>,
+	E: MaybeExtension<WithEffects<B, E>>,
 {
-	fn update(&self) {
-		ReactiveComponent::update(self)
-	}
-
-	fn context(&self) -> RefMut<'_, ReactiveContext<B, E>> {
+	fn context(&self) -> RefMut<'_, StatefulContext<B, E>> {
 		RefMut::map(self.inner.borrow_mut(), |c| &mut c.context)
 	}
 }

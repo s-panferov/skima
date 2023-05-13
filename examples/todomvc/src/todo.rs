@@ -2,8 +2,10 @@ use observe::macros::enclose;
 use observe::Var;
 use skima::combine::Either;
 use skima::reference::Mutable;
+use skima::web::context::StatefulContext;
 use skima::web::prelude::*;
-use skima::web::reactive::{queue, ReactiveContext};
+use skima::web::reactive::{queue, ReactiveExt};
+use skima::web::WebSys;
 use skima::Markup;
 use uuid::Uuid;
 use wasm_bindgen::JsCast;
@@ -115,7 +117,7 @@ pub fn todo_item(item: Var<TodoItem>) -> impl Markup {
 fn update_title(
 	item: &Var<TodoItem>,
 	input_ref: &Mutable<Option<web_sys::Node>>,
-	cx: &mut ReactiveContext,
+	cx: &mut StatefulContext<WebSys, ReactiveExt<WebSys>>,
 ) {
 	let item = item.get_once();
 	let item = TodoItem {
@@ -127,12 +129,12 @@ fn update_title(
 	cx.dispatch(TodoEdit(item));
 }
 
-fn destroy(item: &Var<TodoItem>, cx: &mut ReactiveContext) {
+fn destroy(item: &Var<TodoItem>, cx: &mut StatefulContext<WebSys, ReactiveExt<WebSys>>) {
 	let item = item.get_once();
 	cx.dispatch(TodoDelete(item.id.clone()));
 }
 
-fn toggle(item: &Var<TodoItem>, cx: &mut ReactiveContext) {
+fn toggle(item: &Var<TodoItem>, cx: &mut StatefulContext<WebSys, ReactiveExt<WebSys>>) {
 	let item = item.get_once();
 	cx.dispatch(TodoToggle(item.id.clone(), !item.is_done));
 }

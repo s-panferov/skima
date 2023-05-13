@@ -3,13 +3,13 @@ use std::marker::PhantomData;
 
 use downcast_rs::{impl_downcast, Downcast};
 
-use crate::web::reactive::ReactiveContext;
+use super::context::{Extension, StatefulContext, WithEffects};
 use crate::Backend;
 
 pub struct EffectWithCleanup<F, C, D, B, E>
 where
-	F: FnOnce(&ReactiveContext<B, E>) -> C + 'static,
-	C: FnOnce(&ReactiveContext<B, E>) + 'static,
+	F: FnOnce(&StatefulContext<B, E>) -> C + 'static,
+	C: FnOnce(&StatefulContext<B, E>) + 'static,
 	D: PartialEq + 'static,
 {
 	func: Option<F>,
@@ -21,7 +21,7 @@ where
 
 pub struct Effect<F, D, B, E>
 where
-	F: FnOnce(&ReactiveContext<B, E>) + 'static,
+	F: FnOnce(&StatefulContext<B, E>) + 'static,
 	D: PartialEq + 'static,
 {
 	func: Option<F>,
@@ -31,40 +31,40 @@ where
 }
 
 pub trait Effective<B: Backend, E>: Downcast {
-	fn run(&mut self, cx: &ReactiveContext<B, E>);
-	fn cleanup(&mut self, cx: &ReactiveContext<B, E>);
+	fn run(&mut self, cx: &StatefulContext<B, E>);
+	fn cleanup(&mut self, cx: &StatefulContext<B, E>);
 }
 
 impl_downcast!(Effective<B, E> where B: Backend);
 
 impl<F, D, B, E> Effective<B, E> for Effect<F, D, B, E>
 where
-	F: FnOnce(&ReactiveContext<B, E>) + 'static,
+	F: FnOnce(&StatefulContext<B, E>) + 'static,
 	D: PartialEq + 'static,
 	B: Backend + 'static,
 	E: 'static,
 {
-	fn run(&mut self, cx: &ReactiveContext<B, E>) {
+	fn run(&mut self, cx: &StatefulContext<B, E>) {
 		(self.func.take().unwrap())(cx)
 	}
 
-	fn cleanup(&mut self, _cx: &ReactiveContext<B, E>) {}
+	fn cleanup(&mut self, _cx: &StatefulContext<B, E>) {}
 }
 
 impl<F, C, D, B, E> Effective<B, E> for EffectWithCleanup<F, C, D, B, E>
 where
-	F: FnOnce(&ReactiveContext<B, E>) -> C + 'static,
-	C: FnOnce(&ReactiveContext<B, E>) + 'static,
+	F: FnOnce(&StatefulContext<B, E>) -> C + 'static,
+	C: FnOnce(&StatefulContext<B, E>) + 'static,
 	D: PartialEq + 'static,
 	B: Backend + 'static,
 	E: 'static,
 {
-	fn run(&mut self, cx: &ReactiveContext<B, E>) {
+	fn run(&mut self, cx: &StatefulContext<B, E>) {
 		let cleanup = (self.func.take().unwrap())(cx);
 		self.cleanup = Some(cleanup);
 	}
 
-	fn cleanup(&mut self, _cx: &ReactiveContext<B, E>) {
+	fn cleanup(&mut self, _cx: &StatefulContext<B, E>) {
 		(self.cleanup.take().unwrap())(_cx)
 	}
 }
@@ -76,7 +76,10 @@ pub(crate) struct EffectContext<B, E> {
 	alive: bool,
 }
 
-impl<B: Backend + Default + 'static, E: Default + 'static> ReactiveContext<B, E> {
+impl<B: Backend + Default + 'static, E: Default + 'static> StatefulContext<B, E>
+where
+	E: Extension<WithEffects<B, E>>,
+{
 	pub fn effect<F>(&self, func: F)
 	where
 		F: FnOnce(&Self) + 'static,
@@ -89,8 +92,9 @@ impl<B: Backend + Default + 'static, E: Default + 'static> ReactiveContext<B, E>
 		};
 
 		let type_id = TypeId::of::<F>();
-		let mut effects = self.effects.borrow_mut();
-		let mut effect_ctx = effects.entry(type_id).or_insert(Default::default());
+		let effects = self.ext.get();
+		let mut effects = effects.effects.borrow_mut();
+		let effect_ctx = effects.entry(type_id).or_insert(Default::default());
 
 		effect_ctx.scheduled = Some(Box::new(effect));
 		effect_ctx.alive = true;
@@ -110,8 +114,9 @@ impl<B: Backend + Default + 'static, E: Default + 'static> ReactiveContext<B, E>
 		};
 
 		let type_id = TypeId::of::<F>();
-		let mut effects = self.effects.borrow_mut();
-		let mut effect_ctx = effects.entry(type_id).or_insert(Default::default());
+		let effects = self.ext.get();
+		let mut effects = effects.effects.borrow_mut();
+		let effect_ctx = effects.entry(type_id).or_insert(Default::default());
 
 		effect_ctx.scheduled = Some(Box::new(effect));
 		effect_ctx.alive = true;
@@ -138,8 +143,9 @@ impl<B: Backend + Default + 'static, E: Default + 'static> ReactiveContext<B, E>
 		};
 
 		let type_id = TypeId::of::<F>();
-		let mut effects = self.effects.borrow_mut();
-		let mut effect_ctx = effects.entry(type_id).or_insert(Default::default());
+		let effects = self.ext.get();
+		let mut effects = effects.effects.borrow_mut();
+		let effect_ctx = effects.entry(type_id).or_insert(Default::default());
 
 		effect_ctx.alive = true;
 
@@ -177,8 +183,9 @@ impl<B: Backend + Default + 'static, E: Default + 'static> ReactiveContext<B, E>
 		};
 
 		let type_id = TypeId::of::<F>();
-		let mut effects = self.effects.borrow_mut();
-		let mut effect_ctx = effects.entry(type_id).or_insert(Default::default());
+		let effects = self.ext.get();
+		let mut effects = effects.effects.borrow_mut();
+		let effect_ctx = effects.entry(type_id).or_insert(Default::default());
 
 		effect_ctx.alive = true;
 		if let Some(prev) = &effect_ctx.current {
@@ -210,8 +217,9 @@ impl<B: Backend + Default + 'static, E: Default + 'static> ReactiveContext<B, E>
 		F: FnOnce(&Self) + 'static,
 	{
 		let type_id = TypeId::of::<F>();
-		let mut effects = self.effects.borrow_mut();
-		let mut effect_ctx = effects.entry(type_id).or_insert(Default::default());
+		let effects = self.ext.get();
+		let mut effects = effects.effects.borrow_mut();
+		let effect_ctx = effects.entry(type_id).or_insert(Default::default());
 
 		effect_ctx.alive = true;
 		if let Some(prev) = &effect_ctx.current {
@@ -243,8 +251,9 @@ impl<B: Backend + Default + 'static, E: Default + 'static> ReactiveContext<B, E>
 		D: PartialEq + 'static,
 	{
 		let type_id = TypeId::of::<F>();
-		let mut effects = self.effects.borrow_mut();
-		let mut effect_ctx = effects.entry(type_id).or_insert(Default::default());
+		let effects = self.ext.get();
+		let mut effects = effects.effects.borrow_mut();
+		let effect_ctx = effects.entry(type_id).or_insert(Default::default());
 
 		effect_ctx.alive = true;
 		if let Some(prev) = &effect_ctx.current {
@@ -274,44 +283,41 @@ impl<B: Backend + Default + 'static, E: Default + 'static> ReactiveContext<B, E>
 	}
 }
 
-impl<B: Backend + 'static, E: 'static> ReactiveContext<B, E> {
+impl<B: Backend + 'static, E: 'static> WithEffects<B, E> {
 	pub(crate) fn reset_effects_alive(&self) {
-		let mut effects = self.effects.borrow_mut();
-		for effect in effects.values_mut() {
+		for effect in self.effects.borrow_mut().values_mut() {
 			effect.alive = false;
 		}
 	}
 
 	/// Run all scheduled effects
-	pub(crate) fn run_effects(&self) {
-		let mut effects = self.effects.borrow_mut();
-		for effect in effects.values_mut() {
+	pub(crate) fn run_effects(&self, context: &StatefulContext<B, E>) {
+		for effect in self.effects.borrow_mut().values_mut() {
 			if !effect.alive {
 				assert!(effect.current.is_some());
 				assert!(effect.scheduled.is_none());
 				let mut current = effect.current.take().unwrap();
-				current.cleanup(self);
+				current.cleanup(context);
 				continue;
 			}
 
 			if let Some(mut scheduled) = effect.scheduled.take() {
 				if let Some(mut previous) = effect.scheduled.take() {
-					previous.cleanup(self)
+					previous.cleanup(context)
 				}
-				scheduled.run(self);
+				scheduled.run(context);
 				effect.current = Some(scheduled);
 			}
 		}
 	}
 
-	pub(crate) fn cleanup_effects_internal(&self) {
-		let mut effects = self.effects.borrow_mut();
-		for effect in effects.values_mut() {
+	pub(crate) fn cleanup_effects_internal(&self, context: &StatefulContext<B, E>) {
+		for effect in self.effects.borrow_mut().values_mut() {
 			if let Some(mut previous) = effect.current.take() {
-				previous.cleanup(self)
+				previous.cleanup(context)
 			}
 		}
 
-		effects.clear();
+		self.effects.borrow_mut().clear();
 	}
 }

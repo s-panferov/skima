@@ -7,6 +7,7 @@
 #![feature(fn_traits)]
 #![feature(tuple_trait)]
 #![feature(coerce_unsized, unsize)]
+#![feature(provide_any)]
 
 use std::marker::PhantomData;
 

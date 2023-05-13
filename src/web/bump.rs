@@ -2,9 +2,8 @@ use std::marker::PhantomData;
 
 use bumpalo::Bump;
 
-use super::reactive::Extension;
+use super::context::{Extension, StatefulContext, WithArena};
 use crate::tree::Tree;
-use crate::web::reactive::{ReactiveContext, WithArena};
 use crate::web::{Backend, Markup};
 
 pub struct BumpWrapper<M, B>
@@ -86,13 +85,13 @@ where
 }
 
 pub fn bump_in<'a, 'b, B: Backend, F: FnOnce(&'a Bump) -> M, M: Markup<B> + 'a, E>(
-	cx: &'b ReactiveContext<B, E>,
+	cx: &'b StatefulContext<B, E>,
 	func: F,
 ) -> ContextBumpWrapper<M, B>
 where
-	ReactiveContext<B, E>: Extension<WithArena>,
+	E: Extension<WithArena>,
 {
-	let with_arena = cx.try_extension().unwrap();
+	let with_arena = cx.ext.get();
 	let markup = (func)(unsafe { std::mem::transmute(&with_arena.arena) });
 
 	ContextBumpWrapper {
