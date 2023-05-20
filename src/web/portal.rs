@@ -1,6 +1,7 @@
 use wasm_bindgen::JsCast;
 use web_sys::Element;
 
+use super::helpers::dom::DOCUMENT;
 use crate::web::WebSys;
 use crate::{render_subtree, subtree, Markup};
 
@@ -36,4 +37,8 @@ impl<M: Markup<WebSys>> Markup<WebSys> for Portal<M> {
 
 pub fn portal<M: Markup<WebSys>>(markup: M, element: Element) -> impl Markup {
 	Portal { markup, element }
+}
+
+pub fn fixed<M: Markup<WebSys>>(markup: M) -> impl Markup {
+	portal(markup, DOCUMENT.with(|d| d.clone().unchecked_into()))
 }
