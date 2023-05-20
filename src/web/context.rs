@@ -1,6 +1,7 @@
 use std::any::{Any, Provider, TypeId};
 use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
+use std::marker::PhantomData;
 use std::rc::Weak;
 
 use bumpalo::Bump;
@@ -12,6 +13,32 @@ use crate::action::Action;
 use crate::anydata::{AnyData, Envelope};
 use crate::tree::Tree;
 use crate::Backend;
+
+pub struct MemoRef<T: Envelope> {
+	_t: PhantomData<&'static T>,
+	key: u64,
+}
+
+impl<T: Envelope> MemoRef<T> {
+	pub fn deref<B: Backend, E: Extension<WithMemo>>(
+		&self,
+		context: &StatefulContext<B, E>,
+	) -> T::Output {
+		let memo = context.ext.get();
+		memo.memo.borrow().get_with_key::<T>(self.key)
+	}
+}
+
+impl<T: Envelope> Clone for MemoRef<T> {
+	fn clone(&self) -> Self {
+		MemoRef {
+			_t: PhantomData,
+			key: self.key,
+		}
+	}
+}
+
+impl<T: Envelope> Copy for MemoRef<T> {}
 
 #[derive(Default)]
 pub struct WithArena {
@@ -173,7 +200,7 @@ impl<B: Backend + 'static, E: 'static> StatefulContext<B, E> {
 		None
 	}
 
-	pub fn with_memo<T: Envelope, F: FnOnce() -> T + 'static>(&mut self, func: F) -> T::Output
+	pub fn memo<T: Envelope, F: FnOnce() -> T + 'static>(&mut self, func: F) -> T::Output
 	where
 		E: Extension<WithMemo>,
 	{
@@ -186,6 +213,25 @@ impl<B: Backend + 'static, E: 'static> StatefulContext<B, E> {
 			let t = func();
 			memo.set_with_key::<T>(key, t);
 			memo.get_with_key::<T>(key)
+		}
+	}
+
+	pub fn memo_ref<T: Envelope, F: FnOnce() -> T + 'static>(&mut self, func: F) -> MemoRef<T>
+	where
+		E: Extension<WithMemo>,
+	{
+		let with_memo: &WithMemo = self.ext.get();
+		let mut memo = with_memo.memo.borrow_mut();
+		let key = fxhash::hash64(&(TypeId::of::<T>(), TypeId::of::<F>()));
+
+		if memo.try_with_key::<T>(key).is_none() {
+			let t = func();
+			memo.set_with_key::<T>(key, t);
+		}
+
+		MemoRef {
+			key,
+			_t: PhantomData,
 		}
 	}
 
