@@ -272,7 +272,6 @@ pub fn render<'a, M: Markup<StaticHtml<'a>>>(backend: StaticHtml<'a>, mut markup
 	let tree = Tree::ephemeral_root(backend);
 
 	markup.render(&tree);
-
 	let mut buffer = String::new();
 
 	StaticHtml::node_to_element(tree.node().clone())

@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
-use super::context::{DefaultExt, DynInit, StatefulContext};
+use super::context::{DefaultExt, DynInit, MaybeExtension, StatefulContext, WithEffects};
 use crate::tree::Tree;
 use crate::web::context::HasContext;
 use crate::web::{Backend, Markup};
@@ -11,8 +11,8 @@ use crate::web::{Backend, Markup};
 pub struct StatefulComponent<
 	F: FnOnce(&mut StatefulContext<B, E>) -> M,
 	M: Markup<B>,
-	B: Backend,
-	E,
+	B: Backend + 'static,
+	E: MaybeExtension<WithEffects<B, E>> + 'static,
 > {
 	factory: Option<F>,
 	rendered: Option<M>,
@@ -24,7 +24,7 @@ pub fn stateful<F, M, B>(factory: F) -> impl Markup<B>
 where
 	F: FnOnce(&mut StatefulContext<B, DefaultExt<B>>) -> M,
 	M: Markup<B>,
-	B: Backend,
+	B: Backend + 'static,
 {
 	StatefulComponent {
 		factory: Some(factory),
@@ -34,12 +34,29 @@ where
 	}
 }
 
+impl<F, M, B, E> Drop for StatefulComponent<F, M, B, E>
+where
+	F: FnOnce(&mut StatefulContext<B, E>) -> M,
+	M: Markup<B>,
+	B: Backend + 'static,
+	E: MaybeExtension<WithEffects<B, E>> + 'static,
+{
+	fn drop(&mut self) {
+		tracing::info!("Reactive component destroyed");
+		let context = self.context.as_ref().unwrap();
+		if let Some(effects @ WithEffects { .. }) = context.ext.try_get() {
+			effects.cleanup_effects_internal(context)
+		}
+	}
+}
+
 impl<'a, F, M, B, E> Markup<B> for StatefulComponent<F, M, B, E>
 where
 	F: FnOnce(&mut StatefulContext<B, E>) -> M,
 	M: Markup<B>,
 	B: Backend + 'a,
 	E: DynInit + 'a,
+	E: MaybeExtension<WithEffects<B, E>>,
 {
 	fn has_own_node() -> bool {
 		M::has_own_node()
@@ -76,6 +93,10 @@ where
 			markup.render(tree);
 		}
 
+		if let Some(with_arena @ WithEffects { .. }) = context.ext.try_get() {
+			with_arena.run_effects(&context);
+		}
+
 		self.context = Some(context);
 	}
 
@@ -84,13 +105,22 @@ where
 			return;
 		}
 
-		let mut context = self.context.as_mut().unwrap();
+		let context = self.context.as_mut().unwrap();
+
+		if let Some(with_arena @ WithEffects { .. }) = context.ext.try_get() {
+			with_arena.reset_effects_alive();
+		}
+
 		if let Some(factory) = self.factory.take() {
 			let mut markup = factory(context);
 			markup.diff(prev.rendered.as_mut().unwrap(), tree);
 			self.rendered = Some(markup);
 		} else if let Some(markup) = self.rendered.as_mut() {
 			markup.diff(prev.rendered.as_mut().unwrap(), tree);
+		}
+
+		if let Some(with_arena @ WithEffects { .. }) = context.ext.try_get() {
+			with_arena.run_effects(context);
 		}
 	}
 
