@@ -200,7 +200,7 @@ impl<B> DynInit for ReactiveExt<B> {
 			state: Default::default(),
 			memo: Default::default(),
 			cycle: WithCycle {
-				this: request_value(provider).unwrap(),
+				this: request_value(provider).expect("Self-reference should be provided"),
 			},
 			reactions: WithReactions {
 				evaluation: Default::default(),
@@ -477,9 +477,11 @@ where
 				this: Weak<dyn HasContext<B, E>>,
 			}
 
-			impl<B, E> Provider for P<B, E> {
+			impl<B: 'static, E: 'static> Provider for P<B, E> {
 				fn provide<'a>(&'a self, demand: &mut std::any::Demand<'a>) {
-					demand.provide_value(self.derived.clone());
+					demand
+						.provide_value(self.derived.clone())
+						.provide_value(self.this.clone());
 				}
 			}
 
