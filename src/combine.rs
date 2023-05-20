@@ -31,7 +31,7 @@ where
 			}
 			(Either::A(next), Either::B(prev)) => {
 				// We do not unmount here to allow next node to replace previous
-				prev.drop(tree, false);
+				prev.drop(tree, true);
 				next.render(tree);
 			}
 			(Either::B(next), Either::B(prev)) => {
