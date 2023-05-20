@@ -14,7 +14,7 @@ skima={path="../.."}
 observe="*"
 console_error_panic_hook="*"
 indexmap="*"
-web-sys={ version = "0.3.61", features = [
+web-sys={ version = "0.3.63", features = [
   "Window", 
   "console", 
   "Event", 

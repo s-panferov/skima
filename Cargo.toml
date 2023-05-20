@@ -17,7 +17,7 @@ members = [".", "macro", "examples/todomvc"]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-bumpalo = { version = "3.12.0", features = ["collections"] }
+bumpalo = { version = "3.12.2", features = ["collections"] }
 indexmap = "1.9.3"
 by_address = "1.1.0"
 tracing = "0.1.37"
@@ -25,10 +25,10 @@ castaway = "0.2.2"
 fxhash = "0.2.1"
 downcast-rs = "1.2.0"
 no-panic = "0.1.22"
-observe = "1.1.0"
+observe = "1.2.0"
 
-wasm-bindgen = "0.2.84"
-js-sys = "0.3.61"
+wasm-bindgen = "0.2.86"
+js-sys = "0.3.63"
 smallvec = "1.10.0"
 console_error_panic_hook = "0.1.7"
 tracing-wasm = "0.2.1"
@@ -36,7 +36,7 @@ tracing-wasm = "0.2.1"
 skima-rsx = { path = "./macro" }
 type_at = "*"
 
-web-sys = { version = "0.3.61", features = [
+web-sys = { version = "0.3.63", features = [
   "Window",
   "console",
   "Event",
@@ -54,7 +54,7 @@ web-sys = { version = "0.3.61", features = [
 ] }
 
 [dev-dependencies]
-wasm-bindgen-test = "0.3.34"
+wasm-bindgen-test = "0.3.36"
 
 [profile.release]
 lto = true
