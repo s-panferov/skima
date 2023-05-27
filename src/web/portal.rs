@@ -40,5 +40,8 @@ pub fn portal<M: Markup<WebSys>>(markup: M, element: Element) -> impl Markup {
 }
 
 pub fn fixed<M: Markup<WebSys>>(markup: M) -> impl Markup {
-	portal(markup, DOCUMENT.with(|d| d.clone().unchecked_into()))
+	portal(
+		markup,
+		DOCUMENT.with(|d| d.body().unwrap().clone().unchecked_into()),
+	)
 }
