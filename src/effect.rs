@@ -21,6 +21,16 @@ where
 	}
 }
 
+pub fn effect_once<F>(func: F) -> Effect<F, u64>
+where
+	F: FnOnce() + 'static,
+{
+	Effect {
+		dep: 0,
+		func: Some(func),
+	}
+}
+
 pub fn effect_eq<F, D>(dep: D, func: F) -> Effect<F, D>
 where
 	F: FnOnce() + 'static,
@@ -98,6 +108,8 @@ where
 		if prev.dep != self.dep {
 			prev.cleanup.take().unwrap()();
 			self.cleanup = Some((self.func.take().unwrap())());
+		} else {
+			self.cleanup = prev.cleanup.take();
 		}
 	}
 
