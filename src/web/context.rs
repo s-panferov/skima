@@ -9,6 +9,7 @@ use indexmap::IndexMap;
 
 use super::effect::EffectContext;
 use super::reactive::queue;
+use super::WebSys;
 use crate::action::Action;
 use crate::anydata::{AnyData, Envelope};
 use crate::tree::Tree;
@@ -76,7 +77,7 @@ pub trait HasContext<B: Backend, E> {
 	fn context(&self) -> RefMut<StatefulContext<B, E>>;
 }
 
-pub struct StatefulContext<B: Backend, E> {
+pub struct StatefulContext<B: Backend = WebSys, E = DefaultExt<B>> {
 	pub(crate) tree: Tree<B>,
 	pub(crate) ext: E,
 }
@@ -173,6 +174,10 @@ pub trait MaybeExtension<T> {
 }
 
 impl<B: Backend + 'static, E: 'static> StatefulContext<B, E> {
+	pub fn tree(&self) -> &Tree<B> {
+		&self.tree
+	}
+
 	pub fn dispatch<T: Action>(&self, action: T) {
 		let action = Box::new(action) as Box<dyn Action>;
 		let tree = self.tree.clone();
@@ -244,6 +249,21 @@ impl<B: Backend + 'static, E: 'static> StatefulContext<B, E> {
 		move || {
 			if let Some(this) = this.upgrade() {
 				(func)(&mut this.context())
+			}
+		}
+	}
+
+	pub fn wrap_res_0<F, R>(&self, func: F) -> impl Fn() -> R
+	where
+		F: Fn(&mut Self) -> R,
+		E: Extension<WithCycle<B, E>>,
+	{
+		let this = self.ext.get().this.clone();
+		move || {
+			if let Some(this) = this.upgrade() {
+				(func)(&mut this.context())
+			} else {
+				panic!("Context has gone, cannot return a result")
 			}
 		}
 	}
