@@ -109,7 +109,12 @@ impl Backend for WebSys {
 	}
 
 	fn cursor_after(node: &Self::Node) -> Self::Cursor {
-		Cursor::after(node).unwrap()
+		if let Ok(node) = Cursor::after(node) {
+			node
+		} else {
+			web_sys::console::log_1(&node);
+			panic!("[Cursor::cursor_after] The node above does not have a parent");
+		}
 	}
 
 	fn cursor_beginning_of(node: &Self::Element) -> Self::Cursor {
@@ -135,7 +140,9 @@ impl Backend for WebSys {
 	}
 
 	fn node_to_element(node: Self::Node) -> Option<Self::Element> {
-		node.dyn_into::<Element>().ok()
+		node.dyn_into::<Element>()
+			.map_err(|e| web_sys::console::log_1(&e))
+			.ok()
 	}
 
 	fn set_text(&self, text: &Self::Text, data: &str) {
