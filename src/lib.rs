@@ -76,12 +76,14 @@ where
 	}
 
 	fn diff(&mut self, prev: &mut dyn AnyMarkup<B>, tree: &Tree<B>) {
-		Markup::diff(
-			self,
-			prev.downcast_mut::<T>()
-				.unwrap_or_else(|| panic!("{}", std::any::type_name::<T>())),
-			tree,
-		)
+		if let Some(prev) = (*prev).downcast_mut::<T>() {
+			// If markup type is the same we should diff
+			Markup::diff(self, prev, tree)
+		} else {
+			// Otherwise we unmount `prev` and mount `self`
+			prev.drop(tree, true);
+			Markup::render(self, tree)
+		}
 	}
 
 	fn drop(&mut self, tree: &Tree<B>, should_unmount: bool) {
@@ -109,7 +111,13 @@ pub fn render_subtree<M: Markup<B>, B: Backend>(markup: &mut M, parent: &Tree<B>
 #[inline]
 pub fn subtree<M: Markup<B>, B: Backend>(parent: &Tree<B>) -> Tree<B> {
 	if M::has_own_node() {
-		parent.children.borrow().first().unwrap().0.clone()
+		parent
+			.children
+			.borrow()
+			.first()
+			.expect(std::any::type_name::<M>())
+			.0
+			.clone()
 	} else {
 		parent.clone()
 	}
@@ -234,12 +242,12 @@ where
 		true
 	}
 
-	fn diff(&mut self, prev: &mut Self, tree: &Tree<BACKEND>) {
-		(**self).diff(prev, tree)
-	}
-
 	fn render(&mut self, tree: &Tree<BACKEND>) {
 		(**self).render(tree)
+	}
+
+	fn diff(&mut self, prev: &mut Self, tree: &Tree<BACKEND>) {
+		(**self).diff(&mut **prev, tree)
 	}
 
 	fn drop(&mut self, tree: &Tree<BACKEND>, should_unmount: bool) {
