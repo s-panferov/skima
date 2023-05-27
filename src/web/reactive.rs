@@ -169,7 +169,7 @@ pub struct ReactiveComponentInner<
 	E,
 > {
 	context: StatefulContext<B, E>,
-	markup: M,
+	markup: Option<M>,
 	factory: Rc<F>,
 }
 
@@ -342,8 +342,8 @@ where
 {
 	pub fn update(&self) {
 		// Passing the same context
-		let mut component = self.inner.borrow_mut();
-		let component = &mut *component;
+		let mut component_ref = self.inner.borrow_mut();
+		let component = &mut *component_ref;
 
 		let is_valid = match self.state.get() {
 			State::Valid => true,
@@ -383,11 +383,22 @@ where
 			);
 		}
 
+		let mut markup = component.markup.take().unwrap();
+		let tree = component.context.tree.clone();
+
+		// We need to make sure to drop the component RefMut here
+		// because we want markup to be able to call into some functions
+		// that might access the component
+		std::mem::drop(component_ref);
+
 		if M::dynamic() {
-			next_markup.diff(&mut component.markup, &component.context.tree);
+			next_markup.diff(&mut markup, &tree);
 		}
 
-		component.markup = next_markup;
+		let mut component_ref = self.inner.borrow_mut();
+		let component = &mut *component_ref;
+
+		component.markup = Some(next_markup);
 
 		if let Some(with_arena @ WithArena { .. }) = component.context.ext.try_get_mut() {
 			with_arena.arena_prev.reset();
@@ -533,7 +544,7 @@ where
 				state: Cell::new(State::Valid),
 				inner: RefCell::new(ReactiveComponentInner {
 					context,
-					markup,
+					markup: Some(markup),
 					factory: self.factory.clone(),
 				}),
 			}
@@ -560,9 +571,8 @@ where
 			.data_mut()
 			.remove::<Rc<ReactiveComponent<F, M, B, E>>>();
 
-		let mut inner = component.inner.borrow_mut();
-		inner.markup.drop(tree, should_unmount);
-		std::mem::drop(inner);
+		let mut markup = { component.inner.borrow_mut().markup.take().unwrap() };
+		markup.drop(tree, should_unmount);
 
 		// Clean itself
 		if Self::has_own_node() {
