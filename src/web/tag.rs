@@ -59,7 +59,7 @@ where
 		tree.clear();
 
 		if should_unmount {
-			B::remove(&tree.node());
+			tree.unmount()
 		}
 	}
 }

@@ -296,6 +296,11 @@ impl<B: Backend> Tree<B> {
 		self.node.replace(None)
 	}
 
+	pub fn unmount(&self) {
+		B::remove(&self.node());
+		self.node.replace(None);
+	}
+
 	pub fn attach(&self, prev: Option<B::Node>) {
 		let node = self.node.borrow();
 		let node = node.as_ref().unwrap();

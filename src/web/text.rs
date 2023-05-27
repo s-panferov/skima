@@ -35,7 +35,7 @@ pub macro impl_string($d:expr, $ty:ty $(, $a:lifetime )?) {
 				return;
 			}
 
-			B::remove(&tree.node());
+			tree.unmount()
 		}
 	}
 }
