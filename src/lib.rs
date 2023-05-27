@@ -21,6 +21,7 @@ pub mod anydata;
 pub mod combine;
 pub mod component;
 pub mod dynamic;
+pub mod effect;
 pub mod ext;
 mod iter;
 pub mod list;
