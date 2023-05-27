@@ -425,6 +425,8 @@ impl Backend for Noop {
 	fn node_to_text(node: Self::Node) -> Option<Self::Text> {
 		None
 	}
+
+	fn print_node(node: &Self::Node) {}
 }
 
 #[cfg(test)]

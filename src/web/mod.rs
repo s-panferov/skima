@@ -145,4 +145,8 @@ impl Backend for WebSys {
 	fn node_to_text(node: Self::Node) -> Option<Self::Text> {
 		node.dyn_into::<web_sys::Text>().ok()
 	}
+
+	fn print_node(node: &Self::Node) {
+		web_sys::console::log_1(node);
+	}
 }

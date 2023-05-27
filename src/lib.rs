@@ -53,6 +53,7 @@ pub trait Markup<B: Backend = web::WebSys> {
 }
 
 pub trait AnyMarkup<B: Backend = web::WebSys>: Downcast {
+	fn debug(&self) -> &'static str;
 	fn render(&mut self, tree: &Tree<B>);
 	fn diff(&mut self, prev: &mut dyn AnyMarkup<B>, tree: &Tree<B>);
 	fn drop(&mut self, tree: &Tree<B>, should_unmount: bool);
@@ -63,6 +64,13 @@ where
 	T: Markup<B> + 'static,
 	B: Backend + 'static,
 {
+	fn debug(&self) -> &'static str {
+		if let Ok(b) = castaway::cast!(self, &Box<dyn AnyMarkup>) {
+			return (**b).debug();
+		}
+		std::any::type_name::<T>()
+	}
+
 	fn render(&mut self, tree: &Tree<B>) {
 		Markup::render(self, tree)
 	}
@@ -132,6 +140,8 @@ pub trait Backend: std::fmt::Debug + Clone {
 
 	fn node_to_element(node: Self::Node) -> Option<Self::Element>;
 	fn node_to_text(node: Self::Node) -> Option<Self::Text>;
+
+	fn print_node(node: &Self::Node);
 }
 
 impl<B: Backend> Markup<B> for () {

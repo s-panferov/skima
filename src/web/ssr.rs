@@ -251,6 +251,10 @@ impl<'a> Backend for StaticHtml<'a> {
 	fn node_to_text(node: Self::Node) -> Option<Self::Text> {
 		todo!()
 	}
+
+	fn print_node(node: &Self::Node) {
+		println!("{:?}", node)
+	}
 }
 
 fn find_index<'a>(parent: &'a StaticElement<'a>, node: StaticNode<'a>) -> usize {
