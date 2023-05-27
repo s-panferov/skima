@@ -47,6 +47,19 @@ where
 		}
 	}
 
+	pub fn portal(mut markup: M, container: HtmlElement, parent: &Tree<WebSys>) -> Root<M> {
+		let tree = Tree::new(parent);
+		tree.set_node(container.unchecked_into());
+
+		markup.render(&tree);
+
+		Root {
+			markup,
+			tree,
+			is_ephemeral: true,
+		}
+	}
+
 	pub fn element(&self) -> HtmlElement {
 		self.tree.node().clone().unchecked_into()
 	}
