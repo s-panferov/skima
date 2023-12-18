@@ -1,3 +1,6 @@
+[workspace]
+members = [".", "skima-rsx", "examples/todomvc"]
+
 [package]
 authors = ["Stanislav Panferov <stanislav@panferov.dev>"]
 edition = "2021"
@@ -9,34 +12,30 @@ keywords = ["web", "webasm", "javascript"]
 categories = ["gui", "wasm", "web-programming"]
 license = "MIT"
 
-[workspace]
-
-members = [".", "macro", "examples/todomvc"]
-
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-bumpalo = { version = "3.12.2", features = ["collections"] }
-indexmap = "1.9.3"
+bumpalo = { version = "3.13.0", features = ["collections"] }
+indexmap = "2.0.0"
 by_address = "1.1.0"
 tracing = "0.1.37"
 castaway = "0.2.2"
 fxhash = "0.2.1"
 downcast-rs = "1.2.0"
-no-panic = "0.1.22"
-observe = "1.2.0"
+no-panic = "0.1.23"
+observe = { path = "../observe" }
 
-wasm-bindgen = "0.2.86"
-js-sys = "0.3.63"
+wasm-bindgen = "0.2.87"
+js-sys = "0.3.64"
 smallvec = "1.10.0"
 console_error_panic_hook = "0.1.7"
 tracing-wasm = "0.2.1"
 
-skima-rsx = { path = "./macro" }
+skima-rsx = { path = "./skima-rsx" }
 type_at = "*"
 
-web-sys = { version = "0.3.63", features = [
+web-sys = { version = "0.3.64", features = [
   "Window",
   "console",
   "Event",
@@ -54,7 +53,7 @@ web-sys = { version = "0.3.63", features = [
 ] }
 
 [dev-dependencies]
-wasm-bindgen-test = "0.3.36"
+wasm-bindgen-test = "0.3.37"
 
 [profile.release]
 lto = true

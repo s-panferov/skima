@@ -14,7 +14,7 @@ fn component() -> impl Markup {
 		cx.with(Var::new(true));
 
 		let var = cx.get::<Var<bool>>();
-		let text = if *var.get(cx) { "True" } else { "False" };
+		let text = if var.get(cx) { "True" } else { "False" };
 
 		div((
 			text,

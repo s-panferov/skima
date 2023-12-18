@@ -14,7 +14,8 @@ pub macro impl_string($d:expr, $ty:ty $(, $a:lifetime )?) {
 		}
 
 		fn render(&mut self, tree: &Tree<B>) {
-			tracing::debug!("Rendering text {}", self);
+			#[cfg(debug_assertions)]
+			tree.name.replace(std::borrow::Cow::Borrowed("[text]"));
 
 			let text = tree.backend.create_text(self.as_ref());
 			let prev = tree.set_node(B::text_to_node(text));
@@ -22,7 +23,6 @@ pub macro impl_string($d:expr, $ty:ty $(, $a:lifetime )?) {
 		}
 
 		fn diff(&mut self, prev: &mut Self, tree: &Tree<B>) {
-			tracing::debug!("Diffing text {}", self);
 
 			if prev != self {
 				tree.backend

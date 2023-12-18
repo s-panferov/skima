@@ -25,7 +25,8 @@ where
 	}
 
 	fn render(&mut self, tree: &Tree<B>) {
-		tracing::debug!("Rendering tag {}", self.tag);
+		#[cfg(debug_assertions)]
+		tree.name.replace(std::borrow::Cow::Borrowed(&self.tag));
 
 		let node = B::element_to_node(tree.backend.create_element(self.tag));
 		let prev = tree.set_node(node);

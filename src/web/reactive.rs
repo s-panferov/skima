@@ -1,5 +1,9 @@
-use std::any::{request_value, type_name, Any, Provider, TypeId};
+use core::error::request_value;
+use std::any::{type_name, Any, TypeId};
 use std::cell::{Cell, RefCell, RefMut};
+use std::error::{request_ref, Error};
+use std::fmt::Display;
+use std::hash::Hash;
 use std::marker::PhantomData;
 use std::rc::{Rc, Weak};
 
@@ -74,20 +78,90 @@ impl<B: Backend, E> StatefulContext<B, E> {
 			.unwrap()
 	}
 
-	pub fn mutable<T: 'static>(&mut self, value: T) -> Mutable<T>
+	pub fn mutable<T>(&mut self, value: T) -> Mutable<T>
 	where
-		E: Extension<WithState>,
+		E: Extension<WithMemo>,
+		T: 'static,
 	{
-		let state: &mut WithState = self.ext.get_mut();
+		let key = fxhash::hash64(&TypeId::of::<T>());
+		let state: &mut WithMemo = self.ext.get_mut();
 		// TODO: Store mutables separately to avoid double allocation
-		state
-			.state
-			.entry(TypeId::of::<Mutable<T>>())
-			.or_insert_with(|| Box::new(Mutable::new(value)))
-			.as_ref()
-			.downcast_ref::<Mutable<T>>()
-			.unwrap()
-			.clone()
+		let item = state.memo.borrow_mut().try_with_key::<Mutable<T>>(key);
+
+		if let Some(item) = item {
+			return item;
+		} else {
+			let item = Mutable::new(value);
+			state.memo.borrow_mut().set_with_key(key, item.clone());
+			item
+		}
+	}
+
+	pub fn mutable_tagged<T, M>(&mut self, tag: &M, value: T) -> Mutable<T>
+	where
+		E: Extension<WithMemo>,
+		T: 'static,
+		M: Hash + 'static,
+	{
+		let key = fxhash::hash64(&(TypeId::of::<T>(), TypeId::of::<M>(), fxhash::hash64(&tag)));
+
+		let state: &mut WithMemo = self.ext.get_mut();
+		// TODO: Store mutables separately to avoid double allocation
+		let item = state.memo.borrow_mut().try_with_key::<Mutable<T>>(key);
+
+		if let Some(item) = item {
+			return item;
+		} else {
+			let item = Mutable::new(value);
+			state.memo.borrow_mut().set_with_key(key, item.clone());
+			item
+		}
+	}
+
+	pub fn mutable_with<T, F>(&mut self, func: F) -> Mutable<T>
+	where
+		E: Extension<WithMemo>,
+		T: 'static,
+		F: FnOnce() -> T,
+	{
+		let key = fxhash::hash64(&TypeId::of::<T>());
+		let state: &mut WithMemo = self.ext.get_mut();
+		// TODO: Store mutables separately to avoid double allocation
+		let item = state.memo.borrow_mut().try_with_key::<Mutable<T>>(key);
+
+		if let Some(item) = item {
+			return item;
+		} else {
+			let item = Mutable::new(func());
+			state.memo.borrow_mut().set_with_key(key, item.clone());
+			item
+		}
+	}
+
+	pub fn mutable_tagged_with<T, F, M>(&mut self, marker: &M, func: F) -> Mutable<T>
+	where
+		E: Extension<WithMemo>,
+		T: 'static,
+		F: FnOnce() -> T,
+		M: ?Sized + Hash + 'static,
+	{
+		let key = fxhash::hash64(&(
+			TypeId::of::<T>(),
+			TypeId::of::<M>(),
+			fxhash::hash64(&marker),
+		));
+
+		let state: &mut WithMemo = self.ext.get_mut();
+		// TODO: Store mutables separately to avoid double allocation
+		let item = state.memo.borrow_mut().try_with_key::<Mutable<T>>(key);
+
+		if let Some(item) = item {
+			return item;
+		} else {
+			let item = Mutable::new(func());
+			state.memo.borrow_mut().set_with_key(key, item.clone());
+			item
+		}
 	}
 
 	pub fn with<T: Any>(&mut self, value: T)
@@ -194,7 +268,7 @@ pub struct ReactiveExt<B: 'static> {
 }
 
 impl<B> DynInit for ReactiveExt<B> {
-	fn dyn_init(provider: &dyn Provider) -> Self {
+	fn dyn_init(provider: &dyn Error) -> Self {
 		Self {
 			effects: Default::default(),
 			state: Default::default(),
@@ -488,8 +562,20 @@ where
 				this: Weak<dyn HasContext<B, E>>,
 			}
 
-			impl<B: 'static, E: 'static> Provider for P<B, E> {
-				fn provide<'a>(&'a self, demand: &mut std::any::Demand<'a>) {
+			impl<B, E> std::fmt::Debug for P<B, E> {
+				fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+					unreachable!()
+				}
+			}
+
+			impl<B, E> Display for P<B, E> {
+				fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+					unreachable!()
+				}
+			}
+
+			impl<B: 'static, E: 'static> std::error::Error for P<B, E> {
+				fn provide<'a>(&'a self, demand: &mut std::error::Request<'a>) {
 					demand
 						.provide_value(self.derived.clone())
 						.provide_value(self.this.clone());

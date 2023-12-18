@@ -77,12 +77,14 @@ where
 
 	fn render(&mut self, tree: &Tree<WebSys>) {
 		tracing::debug!("Rendering event {}", self.event);
-		tracing::debug!("Event tree {:?}", tree);
 
 		let data = Rc::<EventListenerData<C>>::new_cyclic(|this| {
 			let data = this.clone();
 			let closure = Closure::wrap(Box::new(move |event| {
-				(data.upgrade().unwrap().func.borrow()).call(event)
+				// we clone here to allow `func` to modify the callback
+				// by triggering a state update
+				let func = { data.upgrade().unwrap().func.borrow().clone() };
+				(func).call(event)
 			}) as Box<dyn Fn(web_sys::Event)>);
 
 			EventListenerData {

@@ -8,22 +8,22 @@ version = "0.1.0"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-wasm-bindgen="*"
-uuid={version="*", features = ["v4", "fast-rng", "js"]}
-skima={path="../.."}
-observe="*"
-console_error_panic_hook="*"
-indexmap="*"
-web-sys={ version = "0.3.63", features = [
-  "Window", 
-  "console", 
-  "Event", 
-  "Node", 
-  "Text", 
-  "Element", 
+wasm-bindgen = "*"
+uuid = { version = "*", features = ["v4", "fast-rng", "js"] }
+skima = { path = "../.." }
+observe = "*"
+console_error_panic_hook = "*"
+indexmap = "*"
+web-sys = { version = "0.3.64", features = [
+  "Window",
+  "console",
+  "Event",
+  "Node",
+  "Text",
+  "Element",
   "History",
-  "HtmlElement", 
+  "HtmlElement",
   "HtmlInputElement",
   "KeyboardEvent",
-  "Document", 
+  "Document",
 ] }

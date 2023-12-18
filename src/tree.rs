@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cell::{Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -38,6 +39,9 @@ impl<B: Backend> Deref for Tree<B> {
 pub struct TreeInner<B: Backend> {
 	pub(crate) level: usize,
 
+	#[cfg(debug_assertions)]
+	pub(crate) name: RefCell<Cow<'static, str>>,
+
 	pub(crate) parent: Option<Tree<B>>,
 	pub(crate) prev: RefCell<Option<Tree<B>>>,
 	pub(crate) next: RefCell<Option<Tree<B>>>,
@@ -62,17 +66,33 @@ where
 	B: Debug,
 {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		f.debug_struct(&format!("Tree[{:?}]", Rc::as_ptr(&self.0)))
-			.field("parent", &self.parent.as_ref().map(|p| Rc::as_ptr(&p.0)))
+		#[cfg(debug_assertions)]
+		let name = self.name.borrow();
+		let name = if cfg!(debug_assertions) {
+			name.as_ref()
+		} else {
+			""
+		};
+
+		f.debug_struct(&format!("Tree[{} {:?}]", name, Rc::as_ptr(&self.0)))
+			// .field("parent", &self.parent.as_ref().map(|p| Rc::as_ptr(&p.0)))
+			// .field(
+			// 	"prev",
+			// 	&self.prev.borrow().as_ref().map(|p| Rc::as_ptr(&p.0)),
+			// )
+			// .field(
+			// 	"next",
+			// 	&self.next.borrow().as_ref().map(|p| Rc::as_ptr(&p.0)),
+			// )
 			.field(
-				"prev",
-				&self.prev.borrow().as_ref().map(|p| Rc::as_ptr(&p.0)),
+				"children",
+				&self
+					.children
+					.borrow()
+					.iter()
+					.map(|v| &v.0)
+					.collect::<Vec<_>>(),
 			)
-			.field(
-				"next",
-				&self.next.borrow().as_ref().map(|p| Rc::as_ptr(&p.0)),
-			)
-			.field("children", &self.children.borrow())
 			.field("node", &self.node)
 			.finish()
 	}
@@ -90,6 +110,8 @@ impl<B: Backend> Tree<B> {
 			node: RefCell::new(Some(B::element_to_node(node))),
 			data: RefCell::new(Default::default()),
 			backend: data,
+			#[cfg(debug_assertions)]
+			name: RefCell::new(Cow::Borrowed("")),
 		}))
 	}
 
@@ -104,6 +126,8 @@ impl<B: Backend> Tree<B> {
 			node: RefCell::new(None),
 			data: RefCell::new(Default::default()),
 			backend: backend,
+			#[cfg(debug_assertions)]
+			name: RefCell::new(Cow::Borrowed("")),
 		}))
 	}
 
@@ -118,6 +142,8 @@ impl<B: Backend> Tree<B> {
 			node: RefCell::new(None),
 			data: RefCell::new(Default::default()),
 			backend: parent.backend.clone(),
+			#[cfg(debug_assertions)]
+			name: RefCell::new(Cow::Borrowed("")),
 		}));
 
 		if let Some(prev) = parent.children.borrow().last() {
@@ -144,6 +170,8 @@ impl<B: Backend> Tree<B> {
 			node: RefCell::new(None),
 			data: RefCell::new(Default::default()),
 			backend: self.backend.clone(),
+			#[cfg(debug_assertions)]
+			name: RefCell::new(Cow::Borrowed("")),
 		}));
 
 		if index > self.children.borrow().len() {
@@ -183,7 +211,13 @@ impl<B: Backend> Tree<B> {
 	}
 
 	pub fn first_child(&self) -> Tree<B> {
-		self.children.borrow().first().as_ref().unwrap().0.clone()
+		self.children
+			.borrow()
+			.first()
+			.as_ref()
+			.expect("First child should exist")
+			.0
+			.clone()
 	}
 
 	pub fn data(&self) -> Ref<AnyData> {
@@ -229,7 +263,7 @@ impl<B: Backend> Tree<B> {
 
 	pub fn node(&self) -> Ref<'_, B::Node> {
 		Ref::map(self.node.borrow(), |v: &Option<B::Node>| {
-			v.as_ref().unwrap()
+			v.as_ref().expect("Requested a Node from an empty Tree")
 		})
 	}
 

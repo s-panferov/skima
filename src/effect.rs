@@ -11,12 +11,20 @@ where
 	dep: D,
 }
 
-pub fn effect<F>(func: F) -> Effect<F, u64>
+pub struct EveryTime;
+
+impl PartialEq for EveryTime {
+	fn eq(&self, _: &Self) -> bool {
+		false
+	}
+}
+
+pub fn effect<F>(func: F) -> Effect<F, EveryTime>
 where
 	F: FnOnce() + 'static,
 {
 	Effect {
-		dep: 0,
+		dep: EveryTime,
 		func: Some(func),
 	}
 }

@@ -3,7 +3,7 @@ use web_sys::Element;
 
 use super::helpers::dom::DOCUMENT;
 use crate::web::WebSys;
-use crate::{render_subtree, subtree, Markup};
+use crate::{init_subtree, subtree, Markup};
 
 pub struct Portal<M> {
 	markup: M,
@@ -20,8 +20,12 @@ impl<M: Markup<WebSys>> Markup<WebSys> for Portal<M> {
 	}
 
 	fn render(&mut self, tree: &crate::tree::Tree<WebSys>) {
+		#[cfg(debug_assertions)]
+		tree.name.replace(std::borrow::Cow::Borrowed("Portal"));
+
 		tree.set_node(self.element.clone().unchecked_into());
-		render_subtree(&mut self.markup, tree);
+		let subtree = init_subtree::<M, _>(tree);
+		self.markup.render(&subtree);
 	}
 
 	fn diff(&mut self, prev: &mut Self, tree: &crate::tree::Tree<WebSys>) {
@@ -32,6 +36,8 @@ impl<M: Markup<WebSys>> Markup<WebSys> for Portal<M> {
 	fn drop(&mut self, tree: &crate::tree::Tree<WebSys>, should_unmount: bool) {
 		let subtree = subtree::<M, _>(tree);
 		self.markup.drop(&subtree, should_unmount);
+
+		tree.clear()
 	}
 }
 

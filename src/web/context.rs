@@ -1,6 +1,7 @@
-use std::any::{Any, Provider, TypeId};
+use std::any::{Any, TypeId};
 use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
+use std::error::Request;
 use std::marker::PhantomData;
 use std::rc::Weak;
 
@@ -99,11 +100,11 @@ impl<B> Default for DefaultExt<B> {
 }
 
 pub trait DynInit {
-	fn dyn_init(provider: &dyn Provider) -> Self;
+	fn dyn_init(req: &dyn std::error::Error) -> Self;
 }
 
 impl<B> DynInit for DefaultExt<B> {
-	fn dyn_init(provider: &dyn Provider) -> Self {
+	fn dyn_init(req: &dyn std::error::Error) -> Self {
 		DefaultExt {
 			effects: Default::default(),
 			memo: Default::default(),
@@ -186,13 +187,13 @@ impl<B: Backend + 'static, E: 'static> StatefulContext<B, E> {
 	}
 
 	// FIXME: Monomorphization
-	pub fn env<T: Envelope>(&mut self) -> T::Output {
+	pub fn env<T: Envelope>(&self) -> T::Output {
 		self.try_env::<T>().unwrap_or_else(|| {
 			panic!("No data of type {} the context", std::any::type_name::<T>());
 		})
 	}
 
-	pub fn try_env<T: Envelope>(&mut self) -> Option<T::Output> {
+	pub fn try_env<T: Envelope>(&self) -> Option<T::Output> {
 		let mut cursor: Option<Tree<B>> = Some(self.tree.clone());
 
 		while let Some(tree) = cursor {

@@ -40,7 +40,7 @@ pub fn app_main() -> impl Markup {
 pub fn todo_list() -> impl Markup {
 	reactive(|cx| {
 		let todos_var = cx.env::<TodoItems>();
-		let todos_vec = todos_var.get(cx);
+		let todos_vec = todos_var.get_ref(cx);
 		let todos_iter = todos_vec.clone().into_iter();
 
 		ul((

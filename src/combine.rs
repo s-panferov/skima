@@ -59,6 +59,12 @@ where
 	}
 
 	fn render(&mut self, tree: &Tree<B>) {
+		#[cfg(debug_assertions)]
+		tree.name
+			.replace(std::borrow::Cow::Borrowed(std::any::type_name::<
+				Either<(), ()>,
+			>()));
+
 		// We need to be careful with the `tree` here, because
 		// we'll receive a "child" tree
 

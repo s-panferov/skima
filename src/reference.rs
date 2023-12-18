@@ -2,10 +2,25 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
+use crate::anydata::Envelope;
 use crate::{Backend, Markup};
 
 pub struct Mutable<T> {
 	inner: Rc<RefCell<T>>,
+}
+
+impl<T: 'static> Envelope for Mutable<T> {
+	type Output = Mutable<T>;
+
+	fn to_dyn(self) -> Rc<dyn std::any::Any> {
+		self.inner
+	}
+
+	fn from_dyn(rc: Rc<dyn std::any::Any>) -> Self::Output {
+		Mutable {
+			inner: rc.downcast().map_err(|_| ()).unwrap(),
+		}
+	}
 }
 
 impl<T: Default> Default for Mutable<T> {

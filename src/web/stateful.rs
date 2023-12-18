@@ -1,9 +1,10 @@
-use std::any::Provider;
 use std::cell::RefCell;
+use std::fmt::Display;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
 use super::context::{DefaultExt, DynInit, MaybeExtension, StatefulContext, WithEffects};
+use crate::console_log;
 use crate::tree::Tree;
 use crate::web::context::HasContext;
 use crate::web::{Backend, Markup};
@@ -43,10 +44,6 @@ where
 {
 	fn drop(&mut self) {
 		tracing::info!("Reactive component destroyed");
-		let context = self.context.as_ref().unwrap();
-		if let Some(effects @ WithEffects { .. }) = context.ext.try_get() {
-			effects.cleanup_effects_internal(context)
-		}
 	}
 }
 
@@ -67,9 +64,17 @@ where
 	}
 
 	fn render(&mut self, tree: &Tree<B>) {
+		#[derive(Debug)]
 		struct P {}
-		impl Provider for P {
-			fn provide<'a>(&'a self, demand: &mut std::any::Demand<'a>) {}
+
+		impl Display for P {
+			fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+				unreachable!()
+			}
+		}
+
+		impl std::error::Error for P {
+			fn provide<'a>(&'a self, req: &mut std::error::Request<'a>) {}
 		}
 
 		struct W<B: Backend, E>(Rc<RefCell<StatefulContext<B, E>>>);
@@ -97,10 +102,17 @@ where
 			with_arena.run_effects(&context);
 		}
 
+		console_log!("Stateful::render {:#?}", tree);
+
 		self.context = Some(context);
 	}
 
 	fn diff(&mut self, prev: &mut Self, tree: &Tree<B>) {
+		console_log!("Stateful::diff {:#?}", tree);
+
+		// take context from the prev version
+		std::mem::swap(&mut self.context, &mut prev.context);
+
 		if !Self::dynamic() {
 			return;
 		}
@@ -125,8 +137,15 @@ where
 	}
 
 	fn drop(&mut self, tree: &Tree<B>, should_unmount: bool) {
+		console_log!("Stateful::drop {:#?}", tree);
+
 		if let Some(markup) = self.rendered.as_mut() {
 			markup.drop(tree, should_unmount);
+		}
+
+		let context = self.context.as_ref().unwrap();
+		if let Some(effects @ WithEffects { .. }) = context.ext.try_get() {
+			effects.cleanup_effects_internal(context)
 		}
 
 		if Self::has_own_node() {

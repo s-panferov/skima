@@ -15,6 +15,9 @@ where
 	}
 
 	fn render(&mut self, tree: &Tree<BACKEND>) {
+		#[cfg(debug_assertions)]
+		tree.name.replace(std::borrow::Cow::Borrowed("(A,)"));
+
 		self.0.render(tree);
 	}
 
@@ -62,6 +65,9 @@ where
 	}
 
 	fn render(&mut self, tree: &Tree<BACKEND>) {
+		#[cfg(debug_assertions)]
+		tree.name.replace(std::borrow::Cow::Borrowed("(A,B)"));
+
 		render_subtree(&mut self.0, tree);
 		render_subtree(&mut self.1, tree);
 	}
@@ -119,6 +125,9 @@ where
 	}
 
 	fn render(&mut self, tree: &Tree<BACKEND>) {
+		#[cfg(debug_assertions)]
+		tree.name.replace(std::borrow::Cow::Borrowed("(A,B,C)"));
+
 		render_subtree(&mut self.0, tree);
 		render_subtree(&mut self.1, tree);
 		render_subtree(&mut self.2, tree);
@@ -196,6 +205,9 @@ where
 	}
 
 	fn render(&mut self, tree: &Tree<BACKEND>) {
+		#[cfg(debug_assertions)]
+		tree.name.replace(std::borrow::Cow::Borrowed("(A,B,C,D)"));
+
 		render_subtree(&mut self.0, tree);
 		render_subtree(&mut self.1, tree);
 		render_subtree(&mut self.2, tree);
@@ -297,6 +309,9 @@ where
 	}
 
 	fn render(&mut self, tree: &Tree<BACKEND>) {
+		#[cfg(debug_assertions)]
+		tree.name.replace(std::borrow::Cow::Borrowed("(A,B,C,D,E)"));
+
 		render_subtree(&mut self.0, tree);
 		render_subtree(&mut self.1, tree);
 		render_subtree(&mut self.2, tree);

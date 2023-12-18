@@ -7,8 +7,10 @@
 #![feature(fn_traits)]
 #![feature(tuple_trait)]
 #![feature(coerce_unsized, unsize)]
-#![feature(provide_any)]
+#![feature(error_generic_member_access)]
+#![feature(error_in_core)]
 
+use std::any::Any;
 use std::marker::PhantomData;
 
 use downcast_rs::Downcast;
@@ -20,6 +22,7 @@ pub mod action;
 pub mod anydata;
 pub mod combine;
 pub mod component;
+mod debug;
 pub mod dynamic;
 pub mod effect;
 pub mod ext;
@@ -33,6 +36,7 @@ pub mod web;
 
 mod docs;
 
+pub use debug::debug;
 pub use skima_rsx::html;
 pub use tap::tap;
 
@@ -41,6 +45,14 @@ pub use crate::dynamic::dynamic;
 pub trait Markup<B: Backend = web::WebSys> {
 	fn has_own_node() -> bool {
 		true
+	}
+
+	fn any(self) -> Box<dyn AnyMarkup<B>>
+	where
+		Self: Sized + 'static,
+		B: 'static,
+	{
+		Box::new(self)
 	}
 
 	fn dynamic() -> bool {
@@ -105,6 +117,22 @@ pub fn render_subtree<M: Markup<B>, B: Backend>(markup: &mut M, parent: &Tree<B>
 		markup.render(&subtree)
 	} else {
 		markup.render(parent)
+	}
+}
+
+#[inline]
+pub fn init_subtree<M: Markup<B>, B: Backend>(parent: &Tree<B>) -> Tree<B> {
+	if M::has_own_node() {
+		Tree::new(parent);
+		parent
+			.children
+			.borrow()
+			.last()
+			.map(|v| &v.0)
+			.unwrap()
+			.clone()
+	} else {
+		parent.clone()
 	}
 }
 
@@ -178,6 +206,9 @@ where
 	}
 
 	fn render(&mut self, tree: &Tree<B>) {
+		#[cfg(debug_assertions)]
+		tree.name.replace(std::borrow::Cow::Borrowed("Option<M>"));
+
 		if let Some(markup) = self.as_mut() {
 			markup.render(tree)
 		}
@@ -201,6 +232,10 @@ where
 			Some(markup) => markup.drop(tree, should_unmount),
 			None => {}
 		}
+
+		if M::has_own_node() {
+			tree.clear()
+		}
 	}
 }
 
@@ -222,6 +257,9 @@ where
 	}
 
 	fn render(&mut self, tree: &Tree<BACKEND>) {
+		#[cfg(debug_assertions)]
+		tree.name.replace(std::borrow::Cow::Borrowed("Box<M>"));
+
 		(**self).render(tree)
 	}
 
@@ -243,6 +281,10 @@ where
 	}
 
 	fn render(&mut self, tree: &Tree<BACKEND>) {
+		#[cfg(debug_assertions)]
+		tree.name
+			.replace(std::borrow::Cow::Borrowed("Box<dyn AnyMarkup>"));
+
 		(**self).render(tree)
 	}
 
@@ -299,6 +341,9 @@ where
 	}
 
 	fn render(&mut self, tree: &Tree<BACKEND>) {
+		#[cfg(debug_assertions)]
+		tree.name.replace(std::borrow::Cow::Borrowed("&'a mut M"));
+
 		(**self).render(tree)
 	}
 
